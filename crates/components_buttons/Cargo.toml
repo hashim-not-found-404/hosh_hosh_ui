@@ -1,0 +1,7 @@
+[package]
+edition = "2024"
+name = "components_buttons"
+version = "0.1.0"
+
+[dependencies]
+prelude.workspace = true

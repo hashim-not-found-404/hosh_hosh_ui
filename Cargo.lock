@@ -189,9 +189,7 @@ dependencies = [
 name = "app_root"
 version = "0.1.0"
 dependencies = [
- "eframe",
  "hosh_hosh_ui",
- "prelude",
 ]
 
 [[package]]
@@ -638,6 +636,27 @@ checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
 dependencies = [
  "bytes",
  "memchr",
+]
+
+[[package]]
+name = "components_buttons"
+version = "0.1.0"
+dependencies = [
+ "prelude",
+]
+
+[[package]]
+name = "components_cards"
+version = "0.1.0"
+dependencies = [
+ "prelude",
+]
+
+[[package]]
+name = "components_text"
+version = "0.1.0"
+dependencies = [
+ "prelude",
 ]
 
 [[package]]
@@ -1454,7 +1473,11 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "hosh_hosh_ui"
 version = "0.1.0"
 dependencies = [
- "interfaces",
+ "components_buttons",
+ "components_cards",
+ "components_text",
+ "eframe",
+ "prelude",
 ]
 
 [[package]]
@@ -1588,6 +1611,9 @@ dependencies = [
 [[package]]
 name = "interfaces"
 version = "0.1.0"
+dependencies = [
+ "egui",
+]
 
 [[package]]
 name = "itertools"
@@ -2565,6 +2591,10 @@ dependencies = [
 [[package]]
 name = "prelude"
 version = "0.1.0"
+dependencies = [
+ "egui",
+ "interfaces",
+]
 
 [[package]]
 name = "presser"

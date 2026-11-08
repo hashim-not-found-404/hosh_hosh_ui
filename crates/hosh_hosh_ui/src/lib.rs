@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use ::prelude::Theme;
+pub use ::prelude::apply_to_context;
+pub use ::prelude::egui;
+pub use ::prelude::set_theme;
+pub use ::prelude::theme;
+pub use components_buttons::ButtonExt;
+pub use components_cards::CardExt;
+pub use components_text::TextExt;
+pub use eframe;
+pub use prelude::FallbackTheme;

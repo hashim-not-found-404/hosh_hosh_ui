@@ -4,6 +4,4 @@ name = "app_root"
 version = "0.1.0"
 
 [dependencies]
-eframe.workspace = true
 hosh_hosh_ui.workspace = true
-prelude.workspace = true
