@@ -639,21 +639,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "components_buttons"
+name = "component_buttons"
 version = "0.1.0"
 dependencies = [
  "prelude",
 ]
 
 [[package]]
-name = "components_cards"
+name = "component_cards"
 version = "0.1.0"
 dependencies = [
  "prelude",
 ]
 
 [[package]]
-name = "components_text"
+name = "component_text"
 version = "0.1.0"
 dependencies = [
  "prelude",
@@ -1473,9 +1473,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "hosh_hosh_ui"
 version = "0.1.0"
 dependencies = [
- "components_buttons",
- "components_cards",
- "components_text",
+ "component_buttons",
+ "component_cards",
+ "component_text",
  "eframe",
  "prelude",
 ]

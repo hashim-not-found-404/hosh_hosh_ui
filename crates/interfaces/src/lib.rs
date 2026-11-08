@@ -1,5 +1,7 @@
 use egui::Color32;
 use egui::CornerRadius;
+use egui::Response;
+use egui::Ui;
 use egui::Vec2;
 
 pub trait Theme: Send + Sync + 'static {
@@ -57,3 +59,19 @@ pub trait Theme: Send + Sync + 'static {
 pub struct DefaultTheme;
 
 impl Theme for DefaultTheme {}
+
+pub trait PrimaryButton: Send + Sync + 'static {
+    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+}
+
+pub trait SecondaryButton: Send + Sync + 'static {
+    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+}
+
+pub trait GhostButton: Send + Sync + 'static {
+    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+}
+
+pub trait DangerButton: Send + Sync + 'static {
+    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+}

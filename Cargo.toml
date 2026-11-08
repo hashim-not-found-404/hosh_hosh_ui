@@ -1,16 +1,21 @@
 [workspace]
-members = ["crates/*"]
+members = [
+    "crates/app_root",
+    "crates/component/*",
+    "crates/hosh_hosh_ui",
+    "crates/interfaces",
+    "crates/prelude",
+]
 resolver = "3"
 
 [workspace.dependencies]
 # internal crates
-components_buttons.path = "./crates/components_buttons"
-components_cards.path = "./crates/components_cards"
-components_text.path = "./crates/components_text"
+component_buttons.path = "./crates/component/buttons"
+component_cards.path = "./crates/component/cards"
+component_text.path = "./crates/component/text"
 hosh_hosh_ui.path = "./crates/hosh_hosh_ui"
 interfaces.path = "./crates/interfaces"
 prelude.path = "./crates/prelude"
-theme_default.path = "./crates/theme_default"
 
 # external in the domain
 anyhow = "1.0.104"
