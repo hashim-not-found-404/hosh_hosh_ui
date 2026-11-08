@@ -1,0 +1,6 @@
+target/
+.code-ranker
+changed.txt
+codebase.txt
+diffs.txt
+.zed
