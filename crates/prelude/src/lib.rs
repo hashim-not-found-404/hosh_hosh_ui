@@ -6,6 +6,7 @@ use egui::Stroke;
 use egui::Theme as EguiTheme;
 use egui::ThemePreference;
 pub use interfaces;
+pub use interfaces::DefaultTheme;
 pub use interfaces::Theme;
 use std::sync::Arc;
 
@@ -23,7 +24,7 @@ pub fn set_theme(ctx: &Context, theme: impl Theme) {
 /// Read the current theme, falling back to `FallbackTheme`.
 pub fn theme(ctx: &Context) -> Arc<dyn Theme> {
     ctx.data(|d| d.get_temp::<Arc<dyn Theme>>(Id::unique(THEME_KEY)))
-        .unwrap_or_else(|| Arc::new(FallbackTheme) as Arc<dyn Theme>)
+        .unwrap_or_else(|| Arc::new(DefaultTheme) as Arc<dyn Theme>)
 }
 
 /// Apply the current theme's tokens to egui's global `Visuals`.
@@ -83,45 +84,4 @@ pub fn apply_to_context(ctx: &Context) {
     style.spacing.interact_size.y = 32.0;
 
     ctx.set_style_of(EguiTheme::Dark, style);
-}
-
-/// Intentionally plain. Only used if the app never calls `set_theme`.
-///
-/// Users should always install a real theme (e.g. `theme_default::DefaultTheme`).
-pub struct FallbackTheme;
-
-impl Theme for FallbackTheme {
-    fn primary(&self) -> Color32 {
-        Color32::from_rgb(120, 120, 130)
-    }
-    fn on_primary(&self) -> Color32 {
-        Color32::WHITE
-    }
-    fn secondary(&self) -> Color32 {
-        Color32::from_rgb(60, 60, 70)
-    }
-    fn danger(&self) -> Color32 {
-        Color32::from_rgb(180, 70, 70)
-    }
-    fn success(&self) -> Color32 {
-        Color32::from_rgb(70, 160, 90)
-    }
-    fn background(&self) -> Color32 {
-        Color32::from_rgb(30, 30, 34)
-    }
-    fn surface(&self) -> Color32 {
-        Color32::from_rgb(40, 40, 46)
-    }
-    fn surface_alt(&self) -> Color32 {
-        Color32::from_rgb(50, 50, 58)
-    }
-    fn text(&self) -> Color32 {
-        Color32::from_rgb(220, 220, 225)
-    }
-    fn text_muted(&self) -> Color32 {
-        Color32::from_rgb(150, 150, 160)
-    }
-    fn border(&self) -> Color32 {
-        Color32::from_rgb(70, 70, 80)
-    }
 }

@@ -1,23 +1,44 @@
-pub use egui;
 use egui::Color32;
 use egui::CornerRadius;
 use egui::Vec2;
 
 pub trait Theme: Send + Sync + 'static {
     // ── Semantic colors ─────────────────────────────────────────────
-    fn primary(&self) -> Color32;
-    fn on_primary(&self) -> Color32;
-    fn secondary(&self) -> Color32;
-    fn danger(&self) -> Color32;
-    fn success(&self) -> Color32;
+    fn primary(&self) -> Color32 {
+        Color32::from_rgb(120, 120, 130)
+    }
+    fn on_primary(&self) -> Color32 {
+        Color32::WHITE
+    }
+    fn secondary(&self) -> Color32 {
+        Color32::from_rgb(60, 60, 70)
+    }
+    fn danger(&self) -> Color32 {
+        Color32::from_rgb(180, 70, 70)
+    }
+    fn success(&self) -> Color32 {
+        Color32::from_rgb(70, 160, 90)
+    }
 
     // ── Surfaces & text ─────────────────────────────────────────────
-    fn background(&self) -> Color32;
-    fn surface(&self) -> Color32;
-    fn surface_alt(&self) -> Color32;
-    fn text(&self) -> Color32;
-    fn text_muted(&self) -> Color32;
-    fn border(&self) -> Color32;
+    fn background(&self) -> Color32 {
+        Color32::from_rgb(30, 30, 34)
+    }
+    fn surface(&self) -> Color32 {
+        Color32::from_rgb(40, 40, 46)
+    }
+    fn surface_alt(&self) -> Color32 {
+        Color32::from_rgb(50, 50, 58)
+    }
+    fn text(&self) -> Color32 {
+        Color32::from_rgb(220, 220, 225)
+    }
+    fn text_muted(&self) -> Color32 {
+        Color32::from_rgb(150, 150, 160)
+    }
+    fn border(&self) -> Color32 {
+        Color32::from_rgb(70, 70, 80)
+    }
 
     // ── Defaults — override only if you need to ─────────────────────
     fn radius(&self) -> CornerRadius {
@@ -32,3 +53,7 @@ pub trait Theme: Send + Sync + 'static {
         10.0
     }
 }
+
+pub struct DefaultTheme;
+
+impl Theme for DefaultTheme {}

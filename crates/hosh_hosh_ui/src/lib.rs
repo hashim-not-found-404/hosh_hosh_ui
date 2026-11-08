@@ -7,4 +7,4 @@ pub use components_buttons::ButtonExt;
 pub use components_cards::CardExt;
 pub use components_text::TextExt;
 pub use eframe;
-pub use prelude::FallbackTheme;
+pub use prelude::DefaultTheme;

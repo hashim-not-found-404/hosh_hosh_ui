@@ -21,7 +21,7 @@ fn main() -> Result {
         options,
         Box::new(|cc| {
             // ── ONE LINE to theme the whole app ────────────────
-            set_theme(&cc.egui_ctx, FallbackTheme);
+            set_theme(&cc.egui_ctx, DefaultTheme);
             Ok(Box::new(DemoApp))
         }),
     )
