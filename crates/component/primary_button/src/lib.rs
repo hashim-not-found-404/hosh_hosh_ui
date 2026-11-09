@@ -13,6 +13,10 @@ use prelude::egui::Ui;
 use prelude::egui::pos2;
 use prelude::egui::vec2;
 
+/// How far the glow extends beyond the button face. Reserved in the
+/// footprint so the glow never bleeds into siblings.
+const GLOW: f32 = 9.0;
+
 pub struct DefaultPrimaryButton;
 
 impl PrimaryButton for DefaultPrimaryButton {
@@ -22,9 +26,24 @@ impl PrimaryButton for DefaultPrimaryButton {
 }
 
 fn button(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
-    let desired = vec2(ui.available_width().min(200.0), 48.0);
-    let (rect, response) = ui.allocate_exact_size(desired, Sense::click());
+    // ── Footprint = face + glow margin on every side. ──────────────
+    // The parent decides `face_w` by choosing the layout:
+    //   vertical            → panel width
+    //   horizontal_wrapped  → whatever fits on the current line
+    //   allocate_ui_with…   → exactly what the app set
+    let desired = ui.available_size();
 
+    // Reserve the WHOLE footprint (face + glow), not just the face.
+    let (outer, response) = ui.allocate_exact_size(desired, Sense::click());
+
+    // The face is inset by GLOW on every side.
+    let rect = outer.shrink(GLOW);
+
+    // Clip every paint call to `outer`. Glow can reach `outer` but
+    // never past it, so two side-by-side buttons can't overlap.
+    let painter = ui.painter().with_clip_rect(outer);
+
+    // ── Animations ─────────────────────────────────────────────────
     let hover =
         ui.ctx()
             .animate_bool_with_time(response.id.with("cyber_hover"), response.hovered(), 0.16);
@@ -37,12 +56,11 @@ fn button(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
 
     let primary = t.primary();
     let on_primary = t.on_primary();
-    let painter = ui.painter();
     let corner_radius = CornerRadius::same(0);
 
-    // 1. Outer glow (painted first, so base rect covers the centre).
+    // 1. Outer glow — reaches exactly `outer`, no further.
     let glow = 0.35 + 0.65 * hover;
-    for (expand, mult) in [(9.0, 0.10), (5.0, 0.18), (2.0, 0.30)] {
+    for (expand, mult) in [(GLOW, 0.10), (GLOW * 0.6, 0.18), (GLOW * 0.25, 0.30)] {
         let alpha = (mult * glow * 255.0) as u8;
         painter.rect_filled(
             rect.expand(expand),
@@ -103,7 +121,7 @@ fn button(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
         painter.circle_filled(pt, 2.0, primary);
     }
 
-    // 7. Animated scanline (hover only).
+    // 7. Scanline.
     if hover > 0.0 {
         let time = ui.input(|i| i.time) as f32;
         let y = rect.top() + (time * 80.0).rem_euclid(rect.height());
