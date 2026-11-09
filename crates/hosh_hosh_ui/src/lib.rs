@@ -1,10 +1,6 @@
-pub use ::prelude::Theme;
-pub use ::prelude::apply_to_context;
-pub use ::prelude::egui;
-pub use ::prelude::set_theme;
-pub use ::prelude::theme;
-pub use component_buttons::ButtonExt;
-pub use component_cards::CardExt;
-pub use component_text::TextExt;
+pub use component_primary_button::DefaultPrimaryButton;
 pub use eframe;
 pub use prelude::DefaultTheme;
+pub use prelude::PrimaryButton;
+pub use prelude::Theme;
+pub use prelude::egui;

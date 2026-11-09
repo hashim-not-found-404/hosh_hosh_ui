@@ -1,7 +1,0 @@
-[package]
-edition = "2024"
-name = "component_text"
-version = "0.1.0"
-
-[dependencies]
-prelude.workspace = true
