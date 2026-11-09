@@ -1,6 +1,5 @@
 use prelude::PrimaryButton;
 use prelude::Theme;
-use prelude::egui;
 use prelude::egui::Align2;
 use prelude::egui::Color32;
 use prelude::egui::CornerRadius;
@@ -11,6 +10,7 @@ use prelude::egui::Sense;
 use prelude::egui::Stroke;
 use prelude::egui::StrokeKind;
 use prelude::egui::Ui;
+use prelude::egui::pos2;
 use prelude::egui::vec2;
 
 pub struct DefaultPrimaryButton;
@@ -22,12 +22,13 @@ impl PrimaryButton for DefaultPrimaryButton {
 }
 
 fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
-    let desired = vec2(200.0, 44.0);
+    let desired = vec2(200.0, 48.0);
     let (rect, response) = ui.allocate_exact_size(desired, Sense::click());
 
     let hover =
         ui.ctx()
             .animate_bool_with_time(response.id.with("cyber_hover"), response.hovered(), 0.16);
+
     let press = ui.ctx().animate_bool_with_time(
         response.id.with("cyber_press"),
         response.is_pointer_button_down_on(),
@@ -37,27 +38,27 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
     let primary = t.primary();
     let on_primary = t.on_primary();
     let painter = ui.painter();
-    let zero = CornerRadius::same(0);
+    let corner_radius = CornerRadius::same(0);
 
     // 1. Outer glow (painted first, so base rect covers the centre).
     let glow = 0.35 + 0.65 * hover;
-    for (expand, mult) in [(9.0_f32, 0.10_f32), (5.0, 0.18), (2.0, 0.30)] {
+    for (expand, mult) in [(9.0, 0.10), (5.0, 0.18), (2.0, 0.30)] {
         let alpha = (mult * glow * 255.0) as u8;
         painter.rect_filled(
             rect.expand(expand),
-            zero,
+            corner_radius,
             Color32::from_rgba_unmultiplied(primary.r(), primary.g(), primary.b(), alpha),
         );
     }
 
     // 2. Dark base fill.
-    painter.rect_filled(rect, zero, Color32::from_rgb(12, 6, 22));
+    painter.rect_filled(rect, corner_radius, t.background());
 
     // 3. Inner tint (hover only).
     if hover > 0.01 {
         painter.rect_filled(
             rect.shrink(1.0),
-            zero,
+            corner_radius,
             Color32::from_rgba_unmultiplied(
                 primary.r(),
                 primary.g(),
@@ -71,7 +72,7 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
     let border_alpha = (90.0 + 165.0 * hover) as u8;
     painter.rect_stroke(
         rect,
-        zero,
+        corner_radius,
         Stroke::new(
             1.0 + 0.8 * hover,
             Color32::from_rgba_unmultiplied(primary.r(), primary.g(), primary.b(), border_alpha),
@@ -107,10 +108,7 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
         let time = ui.input(|i| i.time) as f32;
         let y = rect.top() + (time * 80.0).rem_euclid(rect.height());
         painter.line_segment(
-            [
-                egui::pos2(rect.left() + 3.0, y),
-                egui::pos2(rect.right() - 3.0, y),
-            ],
+            [pos2(rect.left() + 3.0, y), pos2(rect.right() - 3.0, y)],
             Stroke::new(
                 1.0,
                 Color32::from_rgba_unmultiplied(255, 255, 255, (100.0 * hover) as u8),
@@ -152,7 +150,7 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
     if press > 0.01 {
         painter.rect_filled(
             rect,
-            zero,
+            corner_radius,
             Color32::from_rgba_unmultiplied(255, 255, 255, (60.0 * press) as u8),
         );
     }
