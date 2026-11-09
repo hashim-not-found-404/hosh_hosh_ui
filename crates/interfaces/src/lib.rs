@@ -61,17 +61,17 @@ pub struct DefaultTheme;
 impl Theme for DefaultTheme {}
 
 pub trait PrimaryButton: Send + Sync + 'static {
-    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+    fn render(ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
 }
 
 pub trait SecondaryButton: Send + Sync + 'static {
-    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+    fn render(ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
 }
 
 pub trait GhostButton: Send + Sync + 'static {
-    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+    fn render(ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
 }
 
 pub trait DangerButton: Send + Sync + 'static {
-    fn render(&self, ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+    fn render(ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
 }

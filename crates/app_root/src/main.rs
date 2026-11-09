@@ -30,9 +30,9 @@ impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
             ui.horizontal(|ui| {
-                DefaultPrimaryButton {}.render(ui, &CyberpunkTheme, "LAUNCH");
-                DefaultPrimaryButton {}.render(ui, &CyberpunkTheme, "HASHIM");
-                DefaultPrimaryButton {}.render(ui, &DefaultTheme, "HASHIM");
+                DefaultPrimaryButton::render(ui, &CyberpunkTheme, "LAUNCH");
+                DefaultPrimaryButton::render(ui, &CyberpunkTheme, "HASHIM");
+                DefaultPrimaryButton::render(ui, &DefaultTheme, "HASHIM");
             });
         });
     }

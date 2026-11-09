@@ -16,7 +16,7 @@ use prelude::egui::vec2;
 pub struct DefaultPrimaryButton;
 
 impl PrimaryButton for DefaultPrimaryButton {
-    fn render(&self, ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
+    fn render(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
         cyberpunk_primary(ui, t, label)
     }
 }
@@ -55,7 +55,7 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
     painter.rect_filled(rect, corner_radius, t.background());
 
     // 3. Inner tint (hover only).
-    if hover > 0.01 {
+    if hover > 0.0 {
         painter.rect_filled(
             rect.shrink(1.0),
             corner_radius,
@@ -104,7 +104,7 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
     }
 
     // 7. Animated scanline (hover only).
-    if hover > 0.01 {
+    if hover > 0.0 {
         let time = ui.input(|i| i.time) as f32;
         let y = rect.top() + (time * 80.0).rem_euclid(rect.height());
         painter.line_segment(
@@ -120,7 +120,7 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
     // 8. Glowing label.
     let text_color = lerp(primary, on_primary, hover.max(press));
     let font = FontId::monospace(15.0);
-    if hover > 0.01 {
+    if hover > 0.0 {
         let glow_color = Color32::from_rgba_unmultiplied(
             primary.r(),
             primary.g(),
@@ -147,7 +147,7 @@ fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
     );
 
     // 9. Press flash.
-    if press > 0.01 {
+    if press > 0.0 {
         painter.rect_filled(
             rect,
             corner_radius,
