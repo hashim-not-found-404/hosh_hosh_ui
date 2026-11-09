@@ -17,12 +17,12 @@ pub struct DefaultPrimaryButton;
 
 impl PrimaryButton for DefaultPrimaryButton {
     fn render(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
-        cyberpunk_primary(ui, t, label)
+        button(ui, t, label)
     }
 }
 
-fn cyberpunk_primary(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
-    let desired = vec2(200.0, 48.0);
+fn button(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
+    let desired = vec2(ui.available_width().min(200.0), 48.0);
     let (rect, response) = ui.allocate_exact_size(desired, Sense::click());
 
     let hover =
