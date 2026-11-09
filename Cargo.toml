@@ -4,6 +4,7 @@ members = [
     "crates/component/*",
     "crates/hosh_hosh_ui",
     "crates/interfaces",
+    "crates/layouts",
     "crates/prelude",
 ]
 resolver = "3"
@@ -13,6 +14,7 @@ resolver = "3"
 component_primary_button.path = "./crates/component/primary_button"
 hosh_hosh_ui.path = "./crates/hosh_hosh_ui"
 interfaces.path = "./crates/interfaces"
+layouts.path = "./crates/layouts"
 prelude.path = "./crates/prelude"
 
 # external in the domain

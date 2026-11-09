@@ -1461,6 +1461,7 @@ version = "0.1.0"
 dependencies = [
  "component_primary_button",
  "eframe",
+ "layouts",
  "prelude",
 ]
 
@@ -1714,6 +1715,13 @@ dependencies = [
  "euclid",
  "polycool",
  "smallvec",
+]
+
+[[package]]
+name = "layouts"
+version = "0.1.0"
+dependencies = [
+ "prelude",
 ]
 
 [[package]]
