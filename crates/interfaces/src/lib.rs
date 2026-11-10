@@ -144,3 +144,13 @@ pub trait DropdownButton: Send + Sync + 'static {
 pub trait InputField: Send + Sync + 'static {
     fn render(ui: &mut Ui, theme: &dyn Theme, value: &mut String, label: &str) -> Response;
 }
+
+pub trait InputList: Send + Sync + 'static {
+    fn render(
+        ui: &mut Ui,
+        theme: &dyn Theme,
+        value: &mut String,
+        options: &[&str],
+        label: &str,
+    ) -> Response;
+}

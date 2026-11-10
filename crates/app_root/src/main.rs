@@ -34,6 +34,7 @@ impl App for DemoApp {
                 .child(fun_dropdown())
                 .child(fun_toggle())
                 .child(fun_input())
+                .child(fun_input_list())
                 .render(ui);
         });
     }
@@ -86,6 +87,26 @@ fn fun_input() -> impl Fn(&mut Ui) {
             .ctx()
             .data(|d| d.get_temp::<String>(id).unwrap_or_default());
         if DefaultInputField::render(ui, &CyberpunkTheme, &mut text, "NAME").changed() {
+            ui.ctx().data_mut(|d| d.insert_temp(id, text));
+        }
+    }
+}
+
+fn fun_input_list() -> impl Fn(&mut Ui) {
+    |ui| {
+        let id = Id::unique("demo-input-list");
+        let mut text = ui
+            .ctx()
+            .data(|d| d.get_temp::<String>(id).unwrap_or_default());
+        if DefaultInputList::render(
+            ui,
+            &CyberpunkTheme,
+            &mut text,
+            &["DEBIT", "CREDIT", "TRANSFER", "REFUND", "ADJUSTMENT"],
+            "TYPE",
+        )
+        .changed()
+        {
             ui.ctx().data_mut(|d| d.insert_temp(id, text));
         }
     }
