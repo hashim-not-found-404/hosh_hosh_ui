@@ -4,6 +4,7 @@ use prelude::egui::Align2;
 use prelude::egui::Color32;
 use prelude::egui::CursorIcon;
 use prelude::egui::FontId;
+use prelude::egui::Painter;
 use prelude::egui::Pos2;
 use prelude::egui::Rect;
 use prelude::egui::Response;
@@ -14,10 +15,14 @@ use prelude::egui::Ui;
 use prelude::egui::pos2;
 use prelude::egui::vec2;
 
+// ─── Tuning ──────────────────────────────────────────────────────────
 const FACE_PAD: f32 = 16.0;
 const CORNER_CUT: f32 = 10.0;
 const GLITCH_DURATION: f64 = 0.30;
+const HOVER_SECS: f32 = 0.16;
+const PRESS_SECS: f32 = 0.05;
 
+// ─── Public API ──────────────────────────────────────────────────────
 pub struct DefaultPrimaryButton;
 
 impl PrimaryButton for DefaultPrimaryButton {
@@ -26,33 +31,405 @@ impl PrimaryButton for DefaultPrimaryButton {
     }
 }
 
+/// The whole button. Every "should I draw this phase?" decision is
+/// visible here, and nowhere else.
 fn button(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
-    let desired = ui.available_size();
-    let (outer, response) = ui.allocate_exact_size(desired, Sense::click());
+    let (outer, response) = ui.allocate_exact_size(ui.available_size(), Sense::click());
     if outer.width() <= 0.0 || outer.height() <= 0.0 {
         return response;
     }
 
-    // Padding and corners scale with size — no minimum threshold.
-    let pad = FACE_PAD
-        .min(outer.width() * 0.20)
-        .min(outer.height() * 0.20);
-    let face = outer.shrink(pad);
-    let short = face.width().min(face.height());
-    let corner = CORNER_CUT.min(short * 0.28).max(0.0);
-    let scale = (face.height() / 40.0).clamp(0.3, 1.0);
+    let frame = Frame::from_outer(outer);
+    let palette = Palette::from_theme(t);
+    let motion = Motion::from_ui(ui, &response);
+    let painter = ui.painter().with_clip_rect(outer);
 
-    let time = ui.input(|i| i.time);
-    let hover = ui
-        .ctx()
-        .animate_bool_with_time(response.id.with("h"), response.hovered(), 0.16);
-    let press = ui.ctx().animate_bool_with_time(
-        response.id.with("p"),
-        response.is_pointer_button_down_on(),
-        0.05,
+    // ── Phase orchestration — caller decides ────────────────────────
+    draw_glow(&painter, &frame, palette.primary, motion.glow_intensity());
+    draw_face(&painter, &frame, palette.surface);
+
+    if motion.hover > 0.01 {
+        draw_hover_tint(&painter, &frame, palette.primary, 44.0 * motion.hover);
+    }
+
+    draw_tape(
+        &painter,
+        &frame,
+        palette.primary,
+        180.0 + 75.0 * motion.hover,
     );
 
-    // Glitch triggers on *transition into* hover or press.
+    draw_border(
+        &painter,
+        &frame,
+        palette.primary,
+        1.5 + motion.hover * 1.5 + motion.glitch * 2.5,
+        130.0 + 125.0 * motion.hover,
+    );
+
+    if motion.glitch > 0.01 {
+        draw_glitch(&painter, &frame, &motion, &palette);
+    }
+
+    draw_label(&painter, &frame, &motion, &palette, label);
+
+    if motion.glitch > 0.01 || motion.hover > 0.01 {
+        draw_scanlines(&painter, &frame, &motion);
+    }
+
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+    }
+    if response.hovered() || motion.is_animating() {
+        ui.ctx().request_repaint();
+    }
+
+    response
+}
+
+// ─── Small context types ─────────────────────────────────────────────
+
+#[derive(Clone, Copy)]
+struct Frame {
+    rect: Rect,
+    corner: f32,
+    short: f32,
+    scale: f32,
+}
+
+impl Frame {
+    fn from_outer(outer: Rect) -> Self {
+        let pad = FACE_PAD
+            .min(outer.width() * 0.20)
+            .min(outer.height() * 0.20);
+        let rect = outer.shrink(pad);
+        let short = rect.width().min(rect.height());
+        let corner = CORNER_CUT.min(short * 0.28).max(0.0);
+        let scale = (rect.height() / 40.0).clamp(0.3, 1.0);
+        Self {
+            rect,
+            corner,
+            short,
+            scale,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Palette {
+    primary: Color32,
+    on_primary: Color32,
+    surface: Color32,
+    red: Color32,
+    green: Color32,
+    blue: Color32,
+    cyan: Color32,
+}
+
+impl Palette {
+    fn from_theme(t: &dyn Theme) -> Self {
+        Self {
+            primary: t.primary(),
+            on_primary: t.on_primary(),
+            surface: t.surface_alt(),
+            red: Color32::from_rgb(255, 0, 0),
+            green: Color32::from_rgb(0, 255, 0),
+            blue: Color32::from_rgb(0, 0, 255),
+            cyan: Color32::from_rgb(40, 220, 255),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Motion {
+    time: f64,
+    hover: f32,
+    press: f32,
+    glitch: f32,
+}
+
+impl Motion {
+    fn from_ui(ui: &Ui, response: &Response) -> Self {
+        let time = ui.input(|i| i.time);
+        let hover =
+            ui.ctx()
+                .animate_bool_with_time(response.id.with("h"), response.hovered(), HOVER_SECS);
+        let press = ui.ctx().animate_bool_with_time(
+            response.id.with("p"),
+            response.is_pointer_button_down_on(),
+            PRESS_SECS,
+        );
+        let glitch = glitch_intensity(ui, response, time);
+        Self {
+            time,
+            hover,
+            press,
+            glitch,
+        }
+    }
+
+    fn glow_intensity(&self) -> f32 {
+        let pulse = ((self.time * 2.5).sin() as f32 * 0.5 + 0.5) * self.hover;
+        0.35 + 0.65 * self.hover + 0.15 * pulse + 0.4 * self.glitch
+    }
+
+    fn is_animating(&self) -> bool {
+        self.glitch > 0.001 || (0.001..0.999).contains(&self.hover)
+    }
+}
+
+// ─── Reusable paint primitives ──────────────────────────────────────
+
+fn draw_glow(painter: &Painter, frame: &Frame, color: Color32, intensity: f32) {
+    let layers = [
+        ((frame.short * 0.35).min(14.0), 0.06_f32),
+        ((frame.short * 0.20).min(8.0), 0.14),
+        ((frame.short * 0.10).min(4.0), 0.24),
+    ];
+    for (expand, mult) in layers {
+        let alpha = (mult * intensity * 255.0).min(255.0);
+        painter.add(Shape::convex_polygon(
+            cut_polygon(frame.rect.expand(expand), frame.corner + expand),
+            with_alpha(color, alpha),
+            Stroke::NONE,
+        ));
+    }
+}
+
+fn draw_face(painter: &Painter, frame: &Frame, fill: Color32) {
+    painter.add(Shape::convex_polygon(
+        cut_polygon(frame.rect, frame.corner),
+        fill,
+        Stroke::NONE,
+    ));
+}
+
+fn draw_hover_tint(painter: &Painter, frame: &Frame, color: Color32, alpha: f32) {
+    painter.add(Shape::convex_polygon(
+        cut_polygon(frame.rect, frame.corner),
+        with_alpha(color, alpha),
+        Stroke::NONE,
+    ));
+}
+
+fn draw_tape(painter: &Painter, frame: &Frame, color: Color32, alpha: f32) {
+    let stroke = Stroke::new(2.0, with_alpha(color, alpha));
+    let tape_len = (frame.short * 0.35).min(CORNER_CUT + 10.0).max(2.0);
+    let step = (tape_len * 0.2).max(1.0);
+    let inset = (tape_len * 0.15).max(1.5);
+
+    let (l, r, t, b) = (
+        frame.rect.left(),
+        frame.rect.right(),
+        frame.rect.top(),
+        frame.rect.bottom(),
+    );
+    for i in 0..3 {
+        let off = i as f32 * step;
+        if tape_len - off < 1.5 {
+            break;
+        }
+        painter.line_segment(
+            [
+                pos2(l + inset + off, t + inset + tape_len - off),
+                pos2(l + inset + tape_len - off, t + inset + off),
+            ],
+            stroke,
+        );
+        painter.line_segment(
+            [
+                pos2(r - inset - off, b - inset - tape_len + off),
+                pos2(r - inset - tape_len + off, b - inset - off),
+            ],
+            stroke,
+        );
+    }
+}
+
+fn draw_border(painter: &Painter, frame: &Frame, color: Color32, width: f32, alpha: f32) {
+    painter.add(Shape::closed_line(
+        cut_polygon(frame.rect, frame.corner),
+        Stroke::new(width, with_alpha(color, alpha)),
+    ));
+}
+
+// ─── Cyberpunk glitch — 1px lines, R/G/B, size-driven counts ────────
+
+fn draw_glitch(painter: &Painter, frame: &Frame, motion: &Motion, palette: &Palette) {
+    let w = frame.rect.width();
+    let h = frame.rect.height();
+    let area = w * h;
+
+    // Counts scale with size — bigger widget = more lines, same 1px size.
+    let h_count = ((w * 0.20) as usize).clamp(3, 40);
+    let p_count = (area / 200.0) as usize;
+
+    glitch_horizontal_lines(painter, frame, motion, palette, h_count);
+    glitch_pixels(painter, frame, motion, palette, p_count);
+}
+
+fn glitch_horizontal_lines(
+    painter: &Painter,
+    frame: &Frame,
+    motion: &Motion,
+    palette: &Palette,
+    count: usize,
+) {
+    let l = frame.rect.left();
+    let w = frame.rect.width();
+    let t = frame.rect.top();
+    let h = frame.rect.height();
+
+    for i in 0..count {
+        if !flicker(motion, 1.0, 10 + i as u64) {
+            continue;
+        }
+        let y = t + rnd01(motion, 25.0, i) * h;
+        let x1 = l + rnd01(motion, 30.0, i + 100) * w;
+        let x2 = l + rnd01(motion, 30.0, i + 200) * w;
+        let (sx, ex) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
+        if ex - sx < 2.0 {
+            continue;
+        }
+        let color = pick_rgb(palette, i);
+        fill(
+            painter,
+            sx,
+            y,
+            ex - sx,
+            1.0,
+            with_alpha(color, motion.glitch * 220.0),
+        );
+    }
+}
+
+fn glitch_pixels(
+    painter: &Painter,
+    frame: &Frame,
+    motion: &Motion,
+    palette: &Palette,
+    count: usize,
+) {
+    for i in 0..count {
+        if !flicker(motion, 0.8, 5000 + i as u64) {
+            continue;
+        }
+        let x = frame.rect.left() + rnd01(motion, 40.0, i + 300) * frame.rect.width();
+        let y = frame.rect.top() + rnd01(motion, 40.0, i + 400) * frame.rect.height();
+        let color = pick_rgb(palette, i);
+        fill(
+            painter,
+            x,
+            y,
+            1.0,
+            1.0,
+            with_alpha(color, motion.glitch * 220.0),
+        );
+    }
+}
+
+fn pick_rgb(palette: &Palette, i: usize) -> Color32 {
+    match i % 3 {
+        0 => palette.red,
+        1 => palette.green,
+        _ => palette.blue,
+    }
+}
+
+// ─── Label with chromatic aberration ────────────────────────────────
+
+fn draw_label(painter: &Painter, frame: &Frame, motion: &Motion, palette: &Palette, label: &str) {
+    let text_color = lerp(
+        palette.primary,
+        palette.on_primary,
+        motion.hover.max(motion.press),
+    );
+    let font = FontId::monospace((16.0 * frame.scale).max(8.0));
+    let aberr = (1.0 + motion.hover + motion.glitch * 6.0) * frame.scale;
+    let jitter = if motion.glitch > 0.01 {
+        rnd(motion, 50.0, 0) * 10.0 * motion.glitch * frame.scale
+    } else {
+        0.0
+    };
+    let pos = frame.rect.center() + vec2(jitter, 0.0);
+
+    let ghost_alpha = 170.0 + 85.0 * motion.hover.max(motion.glitch);
+    painter.text(
+        pos - vec2(aberr, 0.0),
+        Align2::CENTER_CENTER,
+        label,
+        font.clone(),
+        with_alpha(palette.red, ghost_alpha),
+    );
+    painter.text(
+        pos + vec2(aberr, 0.0),
+        Align2::CENTER_CENTER,
+        label,
+        font.clone(),
+        with_alpha(palette.cyan, ghost_alpha),
+    );
+
+    if motion.hover > 0.01 || motion.glitch > 0.01 {
+        let alpha = (110.0 * motion.hover + 180.0 * motion.glitch).min(255.0);
+        let glow_color = with_alpha(palette.primary, alpha);
+        let d = (2.0 * frame.scale).max(1.0);
+        for off in [vec2(d, 0.0), vec2(-d, 0.0), vec2(0.0, d), vec2(0.0, -d)] {
+            painter.text(
+                pos + off,
+                Align2::CENTER_CENTER,
+                label,
+                font.clone(),
+                glow_color,
+            );
+        }
+    }
+
+    painter.text(pos, Align2::CENTER_CENTER, label, font, text_color);
+}
+
+// ─── Scanlines ──────────────────────────────────────────────────────
+
+fn draw_scanlines(painter: &Painter, frame: &Frame, motion: &Motion) {
+    // Caller guarantees at least one of (hover, glitch) is > 0.01.
+    let count = if motion.glitch > 0.01 {
+        let base = (frame.rect.height() / 12.0).clamp(2.0, 8.0);
+        ((base * motion.glitch).ceil() as usize).max(1)
+    } else {
+        1
+    };
+
+    let speed = 60.0 + motion.glitch as f64 * 240.0;
+    let step = frame.rect.height() / count as f32;
+    let alpha = (110.0 * motion.hover + 220.0 * motion.glitch).min(255.0);
+    let width = (1.0 + motion.glitch * 1.5) * frame.scale.max(0.5);
+
+    for i in 0..count {
+        let base_y = frame.rect.top()
+            + ((motion.time * speed + i as f64 * step as f64) as f32)
+                .rem_euclid(frame.rect.height());
+        let jy = if motion.glitch > 0.01 {
+            rnd(motion, 60.0, i) * 18.0 * motion.glitch * frame.scale
+        } else {
+            0.0
+        };
+        let jx = if motion.glitch > 0.01 {
+            rnd(motion, 40.0, i + 10) * 20.0 * motion.glitch * frame.scale
+        } else {
+            0.0
+        };
+        painter.line_segment(
+            [
+                pos2(frame.rect.left() + 4.0 + jx, base_y + jy),
+                pos2(frame.rect.right() - 4.0 + jx, base_y + jy),
+            ],
+            Stroke::new(width, with_alpha(Color32::WHITE, alpha)),
+        );
+    }
+}
+
+// ─── Glitch intensity (mutates context data) ─────────────────────────
+
+fn glitch_intensity(ui: &Ui, response: &Response, time: f64) -> f32 {
     let (was_hovered, was_pressed) = ui.ctx().data(|d| {
         (
             d.get_temp::<bool>(response.id.with("wh")).unwrap_or(false),
@@ -66,344 +443,35 @@ fn button(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
         d.insert_temp(response.id.with("wp"), response.is_pointer_button_down_on());
     });
 
-    let glitch_key = response.id.with("glitch_at");
+    let key = response.id.with("glitch_at");
     if hover_begin || press_begin {
-        ui.ctx().data_mut(|d| d.insert_temp(glitch_key, time));
+        ui.ctx().data_mut(|d| d.insert_temp(key, time));
     }
-    let last = ui
-        .ctx()
-        .data(|d| d.get_temp::<f64>(glitch_key))
-        .unwrap_or(-1000.0);
-    let gt = ((time - last) / GLITCH_DURATION).clamp(0.0, 1.0) as f32;
-    let glitch = if gt < 1.0 { (1.0 - gt).powi(2) } else { 0.0 };
-
-    let primary = t.primary();
-    let on_primary = t.on_primary();
-    let painter = ui.painter().with_clip_rect(outer);
-    let red = Color32::from_rgb(255, 40, 100);
-    let cyan = Color32::from_rgb(40, 220, 255);
-    let white = Color32::WHITE;
-
-    // ── 1. Breathing glow ────────────────────────────────────────
-    let pulse = ((time * 2.5).sin() as f32 * 0.5 + 0.5) * hover;
-    let glow = 0.35 + 0.65 * hover + 0.15 * pulse + 0.4 * glitch;
-    let e1 = (short * 0.35).min(14.0);
-    let e2 = (short * 0.20).min(8.0);
-    let e3 = (short * 0.10).min(4.0);
-    for (expand, mult) in [(e1, 0.06_f32), (e2, 0.14), (e3, 0.24)] {
-        let alpha = (mult * glow * 255.0).min(255.0) as u8;
-        painter.add(Shape::convex_polygon(
-            cut_polygon(face.expand(expand), corner + expand),
-            Color32::from_rgba_unmultiplied(primary.r(), primary.g(), primary.b(), alpha),
-            Stroke::NONE,
-        ));
-    }
-
-    // ── 2. Face ──────────────────────────────────────────────────
-    let poly = cut_polygon(face, corner);
-    painter.add(Shape::convex_polygon(
-        poly.clone(),
-        t.surface_alt(),
-        Stroke::NONE,
-    ));
-
-    // ── 3. Hover tint ────────────────────────────────────────────
-    if hover > 0.01 {
-        painter.add(Shape::convex_polygon(
-            poly.clone(),
-            Color32::from_rgba_unmultiplied(
-                primary.r(),
-                primary.g(),
-                primary.b(),
-                (44.0 * hover) as u8,
-            ),
-            Stroke::NONE,
-        ));
-    }
-
-    // ── 4. Warning tape (size-safe) ─────────────────────────────
-    let accent = Color32::from_rgba_unmultiplied(
-        primary.r(),
-        primary.g(),
-        primary.b(),
-        (180.0 + 75.0 * hover) as u8,
-    );
-    let tape_stroke = Stroke::new(2.0, accent);
-    let tape_len = (short * 0.35).min(CORNER_CUT + 10.0).max(2.0);
-    let tape_step = (tape_len * 0.2).max(1.0);
-    let tape_inset = (tape_len * 0.15).max(1.5);
-    for i in 0..3 {
-        let off = i as f32 * tape_step;
-        if tape_len - off < 1.5 {
-            break;
-        }
-        painter.line_segment(
-            [
-                pos2(
-                    face.left() + tape_inset + off,
-                    face.top() + tape_inset + tape_len - off,
-                ),
-                pos2(
-                    face.left() + tape_inset + tape_len - off,
-                    face.top() + tape_inset + off,
-                ),
-            ],
-            tape_stroke,
-        );
-        painter.line_segment(
-            [
-                pos2(
-                    face.right() - tape_inset - off,
-                    face.bottom() - tape_inset - tape_len + off,
-                ),
-                pos2(
-                    face.right() - tape_inset - tape_len + off,
-                    face.bottom() - tape_inset - off,
-                ),
-            ],
-            tape_stroke,
-        );
-    }
-
-    // ── 5. Border ────────────────────────────────────────────────
-    let border_w = 1.5 + hover * 1.5 + glitch * 2.5;
-    let border_a = (130.0 + 125.0 * hover).min(255.0) as u8;
-    painter.add(Shape::closed_line(
-        poly.clone(),
-        Stroke::new(
-            border_w,
-            Color32::from_rgba_unmultiplied(primary.r(), primary.g(), primary.b(), border_a),
-        ),
-    ));
-
-    // ── 6. Glitch — 4 independent types, all size-scaled ────────
-    if glitch > 0.01 {
-        let area = face.width() * face.height();
-        let base = ((area / 1500.0) as usize).clamp(3, 24);
-
-        // (a) Horizontal tear bands
-        let tear_count = (base / 2).max(2);
-        for i in 0..tear_count {
-            if !flicker(glitch, time, 10 + i as u64) {
-                continue;
-            }
-            let y =
-                face.top() + (noise((time * 25.0) as u64, i) + 0.5).clamp(0.0, 1.0) * face.height();
-            let h =
-                1.0 + (noise((time * 25.0) as u64, i + 100) + 0.5).clamp(0.0, 1.0) * (4.0 * scale);
-            let shift = noise((time * 25.0) as u64, i + 200) * 20.0 * glitch * scale;
-            let color = match i % 3 {
-                0 => red,
-                1 => cyan,
-                _ => white,
-            };
-            painter.rect_filled(
-                Rect::from_min_size(pos2(face.left() + shift, y), vec2(face.width(), h)),
-                0.0,
-                Color32::from_rgba_unmultiplied(
-                    color.r(),
-                    color.g(),
-                    color.b(),
-                    (glitch * 200.0) as u8,
-                ),
-            );
-        }
-
-        // (b) Pixel debris — scattered single pixels
-        let pixel_count = base;
-        for i in 0..pixel_count {
-            if !flicker(glitch, time, 500 + i as u64) {
-                continue;
-            }
-            let px = face.left()
-                + (noise((time * 40.0) as u64, i + 300) + 0.5).clamp(0.0, 1.0) * face.width();
-            let py = face.top()
-                + (noise((time * 40.0) as u64, i + 400) + 0.5).clamp(0.0, 1.0) * face.height();
-            let w = (1.0
-                + (noise((time * 40.0) as u64, i + 500) + 0.5).clamp(0.0, 1.0) * (3.0 * scale))
-                .max(1.0);
-            let h = (1.0
-                + (noise((time * 40.0) as u64, i + 600) + 0.5).clamp(0.0, 1.0) * (2.0 * scale))
-                .max(1.0);
-            let color = match i % 4 {
-                0 => red,
-                1 => cyan,
-                2 => white,
-                _ => primary,
-            };
-            painter.rect_filled(
-                Rect::from_min_size(pos2(px, py), vec2(w, h)),
-                0.0,
-                Color32::from_rgba_unmultiplied(
-                    color.r(),
-                    color.g(),
-                    color.b(),
-                    (glitch * 220.0) as u8,
-                ),
-            );
-        }
-
-        // (c) Damage cluster — a burst of nearby pixels (simulates hot-pixel blob)
-        if flicker(glitch * 0.7, time, 777) {
-            let cx = face.left()
-                + (noise((time * 20.0) as u64, 900) + 0.5).clamp(0.0, 1.0) * face.width();
-            let cy = face.top()
-                + (noise((time * 20.0) as u64, 910) + 0.5).clamp(0.0, 1.0) * face.height();
-            let blob =
-                3 + ((noise((time * 20.0) as u64, 920) + 0.5).clamp(0.0, 1.0) * 6.0) as usize;
-            let color = if noise((time * 20.0) as u64, 930) > 0.0 {
-                red
-            } else {
-                cyan
-            };
-            for j in 0..blob {
-                let dx = noise((time * 20.0) as u64, 940 + j) * (8.0 * scale);
-                let dy = noise((time * 20.0) as u64, 950 + j) * (6.0 * scale);
-                let s = (1.0
-                    + (noise((time * 20.0) as u64, 960 + j) + 0.5).clamp(0.0, 1.0) * (2.0 * scale))
-                    .max(1.0);
-                painter.rect_filled(
-                    Rect::from_min_size(pos2(cx + dx, cy + dy), vec2(s, s)),
-                    0.0,
-                    Color32::from_rgba_unmultiplied(
-                        color.r(),
-                        color.g(),
-                        color.b(),
-                        (glitch * 220.0) as u8,
-                    ),
-                );
-            }
-        }
-
-        // (d) Vertical stripe — rarer, larger disruption
-        if flicker(glitch * 0.4, time, 888) {
-            let x = face.left()
-                + (noise((time * 15.0) as u64, 800) + 0.5).clamp(0.0, 1.0) * face.width();
-            let w = (2.0
-                + (noise((time * 15.0) as u64, 810) + 0.5).clamp(0.0, 1.0) * (6.0 * scale))
-                .max(1.0);
-            let color = if noise((time * 15.0) as u64, 820) > 0.0 {
-                red
-            } else {
-                cyan
-            };
-            painter.rect_filled(
-                Rect::from_min_size(pos2(x, face.top()), vec2(w, face.height())),
-                0.0,
-                Color32::from_rgba_unmultiplied(
-                    color.r(),
-                    color.g(),
-                    color.b(),
-                    (glitch * 120.0) as u8,
-                ),
-            );
-        }
-    }
-
-    // ── 7. Chromatic label ──────────────────────────────────────
-    let text_color = lerp(primary, on_primary, hover.max(press));
-    let font_size = (16.0 * scale).max(8.0);
-    let font = FontId::monospace(font_size);
-    let aberr = (1.0 + hover * 1.0 + glitch * 6.0) * scale;
-    let jitter = if glitch > 0.01 {
-        noise((time * 50.0) as u64, 0) * 10.0 * glitch * scale
-    } else {
-        0.0
-    };
-    let label_pos = face.center() + vec2(jitter, 0.0);
-
-    let ghost_a = (170.0 + 85.0 * hover.max(glitch)).min(255.0) as u8;
-    painter.text(
-        label_pos + vec2(-aberr, 0.0),
-        Align2::CENTER_CENTER,
-        label,
-        font.clone(),
-        Color32::from_rgba_unmultiplied(red.r(), red.g(), red.b(), ghost_a),
-    );
-    painter.text(
-        label_pos + vec2(aberr, 0.0),
-        Align2::CENTER_CENTER,
-        label,
-        font.clone(),
-        Color32::from_rgba_unmultiplied(cyan.r(), cyan.g(), cyan.b(), ghost_a),
-    );
-
-    if hover > 0.01 || glitch > 0.01 {
-        let ga = (110.0 * hover + 180.0 * glitch).min(255.0) as u8;
-        let gc = Color32::from_rgba_unmultiplied(primary.r(), primary.g(), primary.b(), ga);
-        let glow_d = (2.0 * scale).max(1.0);
-        for off in [
-            vec2(glow_d, 0.0),
-            vec2(-glow_d, 0.0),
-            vec2(0.0, glow_d),
-            vec2(0.0, -glow_d),
-        ] {
-            painter.text(
-                label_pos + off,
-                Align2::CENTER_CENTER,
-                label,
-                font.clone(),
-                gc,
-            );
-        }
-    }
-    painter.text(label_pos, Align2::CENTER_CENTER, label, font, text_color);
-
-    // ── 8. Scanlines — count scales with size AND glitch ────────
-    let scan_count = if glitch > 0.01 {
-        let base = (face.height() / 12.0).clamp(2.0, 8.0);
-        ((base * glitch).ceil() as usize).max(1)
-    } else if hover > 0.01 {
-        1
-    } else {
-        0
-    };
-    if scan_count > 0 {
-        let speed = 60.0 + glitch as f64 * 240.0;
-        for i in 0..scan_count {
-            let offset = (i as f64) * (face.height() as f64 / scan_count as f64);
-            let base_y = face.top() + ((time * speed + offset) as f32).rem_euclid(face.height());
-            let jy = if glitch > 0.01 {
-                noise((time * 60.0) as u64, i as usize) * 18.0 * glitch * scale
-            } else {
-                0.0
-            };
-            let jx = if glitch > 0.01 {
-                noise((time * 40.0) as u64, i as usize + 10) * 20.0 * glitch * scale
-            } else {
-                0.0
-            };
-            let alpha = (110.0 * hover + 220.0 * glitch).min(255.0) as u8;
-            painter.line_segment(
-                [
-                    pos2(face.left() + 4.0 + jx, base_y + jy),
-                    pos2(face.right() - 4.0 + jx, base_y + jy),
-                ],
-                Stroke::new(
-                    (1.0 + glitch * 1.5) * scale.max(0.5),
-                    Color32::from_rgba_unmultiplied(255, 255, 255, alpha),
-                ),
-            );
-        }
-    }
-
-    // ── 9. Cursor + repaint ─────────────────────────────────────
-    if response.hovered() {
-        ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
-    }
-    if response.hovered() || glitch > 0.001 || (0.001..0.999).contains(&hover) {
-        ui.ctx().request_repaint();
-    }
-
-    response
+    let last = ui.ctx().data(|d| d.get_temp::<f64>(key)).unwrap_or(-1000.0);
+    let t = ((time - last) / GLITCH_DURATION).clamp(0.0, 1.0) as f32;
+    if t < 1.0 { (1.0 - t).powi(2) } else { 0.0 }
 }
 
-fn flicker(glitch: f32, time: f64, seed: u64) -> bool {
-    if glitch <= 0.01 {
+// ─── Small helpers ──────────────────────────────────────────────────
+
+fn flicker(motion: &Motion, mult: f32, seed: u64) -> bool {
+    if motion.glitch * mult <= 0.01 {
         return false;
     }
-    let n = noise((time * 30.0) as u64, seed as usize) + 0.5; // 0..1
-    n < glitch * 1.2
+    let n = noise((motion.time * 30.0) as u64, seed as usize) + 0.5;
+    n < motion.glitch * mult * 1.2
+}
+
+fn rnd(motion: &Motion, speed: f64, seed: usize) -> f32 {
+    noise((motion.time * speed) as u64, seed)
+}
+
+fn rnd01(motion: &Motion, speed: f64, seed: usize) -> f32 {
+    rnd(motion, speed, seed) + 0.5
+}
+
+fn fill(painter: &Painter, x: f32, y: f32, w: f32, h: f32, color: Color32) {
+    painter.rect_filled(Rect::from_min_size(pos2(x, y), vec2(w, h)), 0.0, color);
 }
 
 fn cut_polygon(rect: Rect, cut: f32) -> Vec<Pos2> {
@@ -421,6 +489,15 @@ fn cut_polygon(rect: Rect, cut: f32) -> Vec<Pos2> {
         pos2(rect.left(), rect.bottom() - cut),
         pos2(rect.left(), rect.top() + cut),
     ]
+}
+
+fn with_alpha(color: Color32, alpha: f32) -> Color32 {
+    Color32::from_rgba_unmultiplied(
+        color.r(),
+        color.g(),
+        color.b(),
+        alpha.clamp(0.0, 255.0) as u8,
+    )
 }
 
 fn noise(seed: u64, i: usize) -> f32 {
