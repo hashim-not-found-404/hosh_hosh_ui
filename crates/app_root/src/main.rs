@@ -63,7 +63,7 @@ fn fun_name1() -> impl Fn(&mut Ui) {
 
 fn fun_name() -> impl Fn(&mut Ui) {
     |ui| {
-        DefaultPrimaryButton::render(ui, &CyberpunkTheme, "FIXED 1");
+        DefaultPrimaryButton::render(ui, &DefaultTheme, "FIXED 1");
     }
 }
 
