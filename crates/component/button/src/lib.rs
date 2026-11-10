@@ -23,7 +23,8 @@ const GLITCH_DURATION: f64 = 0.20;
 const HOVER_SECS: f32 = 0.20;
 const PRESS_SECS: f32 = 0.05;
 
-// Fixed RGB split colors for the glitch effect — theme-independent.
+// Fixed RGB split colors for the glitch effect — theme-independent so
+// they always pop, regardless of the face color underneath.
 const RGB_R: Color32 = Color32::from_rgb(255, 0, 0);
 const RGB_G: Color32 = Color32::from_rgb(0, 255, 0);
 const RGB_B: Color32 = Color32::from_rgb(0, 0, 255);
@@ -35,21 +36,26 @@ pub struct DefaultSecondaryButton;
 
 impl PrimaryButton for DefaultPrimaryButton {
     fn render(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
-        paint(ui, t.primary(), label)
+        // Bold: face == line (a solid accent block), text is body text.
+        paint(ui, t.brand(), t.brand(), t.text(), label)
     }
 }
 
 impl SecondaryButton for DefaultSecondaryButton {
     fn render(ui: &mut Ui, t: &dyn Theme, label: &str) -> Response {
-        paint(ui, t.secondary(), label)
+        // Subtle: face is an elevated surface, line is the alternate
+        // brand accent, text is the body text color — all three distinct.
+        paint(ui, t.surface_elevated(), t.brand_alt(), t.text(), label)
     }
 }
-
-/// The whole button. `accent` is the *only* difference between primary
-/// and secondary — everything else (ghost face, glow, border, glitch,
-/// chromatic label) is identical. Theme colors never leak in here; the
-/// caller decides by passing `theme.primary()` or `theme.secondary()`.
-fn paint(ui: &mut Ui, accent: Color32, label: &str) -> Response {
+/// The whole button. Three colors are injected by the caller:
+///   * `face` — the background fill
+///   * `line` — border, tape corners, hover tint, glow, glitch accent
+///   * `text` — label text and its halo
+///
+/// The theme never leaks in here. The caller decides which tokens to
+/// pass based on the visual language it wants.
+fn paint(ui: &mut Ui, face: Color32, line: Color32, text: Color32, label: &str) -> Response {
     let (outer, response) = ui.allocate_exact_size(ui.available_size(), Sense::click());
     if outer.width() <= 0.0 || outer.height() <= 0.0 {
         return response;
@@ -59,34 +65,43 @@ fn paint(ui: &mut Ui, accent: Color32, label: &str) -> Response {
     let motion = Motion::from_ui(ui, &response);
     let painter = ui.painter().with_clip_rect(outer);
 
-    // ── Ghost face: no fill at rest. Tint only on interaction. ──────
+    // ── Face fill. ────────────────────────────────────────────────
+    draw_face(&painter, &frame, face);
+
+    // ── Hover / press tint (line color over the face). ────────────
     if motion.hover > 0.01 {
-        draw_tint(&painter, &frame, accent, 22.0 * motion.hover);
+        draw_tint(&painter, &frame, line, 22.0 * motion.hover);
     }
     if motion.press > 0.01 {
-        draw_tint(&painter, &frame, accent, 32.0 * motion.press);
+        draw_tint(&painter, &frame, line, 32.0 * motion.press);
     }
 
-    // ── Subtle glow, only while active. ─────────────────────────────
+    // ── Subtle glow, only while active. ───────────────────────────
     if motion.hover > 0.01 || motion.glitch > 0.01 {
-        draw_glow(&painter, &frame, accent, motion.glow_intensity() * 0.45);
+        draw_glow(&painter, &frame, line, motion.glow_intensity() * 0.45);
     }
 
-    // ── The border IS the button. ───────────────────────────────────
+    // ── Tape corners. ─────────────────────────────────────────────
+    draw_tape(&painter, &frame, line, 180.0 + 75.0 * motion.hover);
+
+    // ── Border. ───────────────────────────────────────────────────
     draw_border(
         &painter,
         &frame,
-        accent,
+        line,
         1.0 + motion.hover * 1.0 + motion.glitch * 1.5,
         160.0 + 95.0 * motion.hover,
     );
 
+    // ── Glitch (fixed R/G/B, pops on any face). ───────────────────
     if motion.glitch > 0.01 {
         draw_glitch(&painter, &frame, &motion);
     }
 
-    draw_label(&painter, &frame, &motion, accent, label);
+    // ── Label. ────────────────────────────────────────────────────
+    draw_label(&painter, &frame, &motion, text, label);
 
+    // ── Scanlines, only during glitch. ────────────────────────────
     if motion.glitch > 0.01 {
         draw_scanlines(&painter, &frame, &motion);
     }
@@ -169,6 +184,14 @@ impl Motion {
 
 // ─── Paint primitives ──────────────────────────────────────────────
 
+fn draw_face(painter: &Painter, frame: &Frame, fill: Color32) {
+    painter.add(Shape::convex_polygon(
+        cut_polygon(frame.rect, frame.corner),
+        fill,
+        Stroke::NONE,
+    ));
+}
+
 fn draw_tint(painter: &Painter, frame: &Frame, color: Color32, alpha: f32) {
     painter.add(Shape::convex_polygon(
         cut_polygon(frame.rect, frame.corner),
@@ -190,6 +213,40 @@ fn draw_glow(painter: &Painter, frame: &Frame, color: Color32, intensity: f32) {
             with_alpha(color, alpha),
             Stroke::NONE,
         ));
+    }
+}
+
+fn draw_tape(painter: &Painter, frame: &Frame, color: Color32, alpha: f32) {
+    let stroke = Stroke::new(2.0, with_alpha(color, alpha));
+    let tape_len = (frame.short * 0.35).min(CORNER_CUT + 10.0).max(2.0);
+    let step = (tape_len * 0.2).max(1.0);
+    let inset = (tape_len * 0.15).max(1.5);
+
+    let (l, r, t, b) = (
+        frame.rect.left(),
+        frame.rect.right(),
+        frame.rect.top(),
+        frame.rect.bottom(),
+    );
+    for i in 0..3 {
+        let off = i as f32 * step;
+        if tape_len - off < 1.5 {
+            break;
+        }
+        painter.line_segment(
+            [
+                pos2(l + inset + off, t + inset + tape_len - off),
+                pos2(l + inset + tape_len - off, t + inset + off),
+            ],
+            stroke,
+        );
+        painter.line_segment(
+            [
+                pos2(r - inset - off, b - inset - tape_len + off),
+                pos2(r - inset - tape_len + off, b - inset - off),
+            ],
+            stroke,
+        );
     }
 }
 
@@ -270,11 +327,11 @@ fn pick_rgb(i: usize) -> Color32 {
     }
 }
 
-// ─── Label — accent in the void ────────────────────────────────────
+// ─── Label — text color over the face ──────────────────────────────
 
-fn draw_label(painter: &Painter, frame: &Frame, motion: &Motion, accent: Color32, label: &str) {
+fn draw_label(painter: &Painter, frame: &Frame, motion: &Motion, text: Color32, label: &str) {
     let active = motion.hover.max(motion.press);
-    let text_color = lerp(accent, Color32::WHITE, active * 0.55);
+    let text_color = lerp(text, Color32::WHITE, active * 0.55);
     let font = FontId::monospace((15.0 * frame.scale).max(8.0));
 
     let jitter = if motion.glitch > 0.01 {
@@ -304,10 +361,10 @@ fn draw_label(painter: &Painter, frame: &Frame, motion: &Motion, accent: Color32
         );
     }
 
-    // Soft accent halo on hover / glitch.
+    // Soft halo in the text color (so it reads on any face).
     if active > 0.01 || motion.glitch > 0.01 {
         let alpha = (100.0 * active + 150.0 * motion.glitch).min(255.0);
-        let glow_color = with_alpha(accent, alpha);
+        let glow_color = with_alpha(text, alpha);
         let d = (1.5 * frame.scale).max(1.0);
         for off in [vec2(d, 0.0), vec2(-d, 0.0), vec2(0.0, d), vec2(0.0, -d)] {
             painter.text(

@@ -74,37 +74,49 @@ fn fun_name() -> impl Fn(&mut Ui) {
 pub struct CyberpunkTheme;
 
 impl Theme for CyberpunkTheme {
-    fn primary(&self) -> Color32 {
-        Color32::from_rgb(255, 42, 109)
+    // ── Accents ─────────────────────────────────────────────────────
+    fn brand(&self) -> Color32 {
+        // Steel blue — the one cold accent. Muted, crystalline.
+        Color32::from_rgb(110, 175, 210)
     }
-    fn on_primary(&self) -> Color32 {
-        Color32::from_rgb(255, 245, 250)
+    fn on_brand(&self) -> Color32 {
+        // Cool charcoal — the secondary's ghost face.
+        // Just barely lighter than `background`, so it reads as depth
+        // not as a filled shape.
+        Color32::from_rgb(22, 26, 34)
     }
-    fn secondary(&self) -> Color32 {
-        Color32::from_rgb(5, 217, 232)
+    fn brand_alt(&self) -> Color32 {
+        // Warm copper — the complementary warm accent.
+        // Blue + copper is the classic cinematic pairing.
+        Color32::from_rgb(200, 155, 100)
     }
     fn danger(&self) -> Color32 {
-        Color32::from_rgb(255, 56, 100)
+        Color32::from_rgb(205, 105, 95)
     }
     fn success(&self) -> Color32 {
-        Color32::from_rgb(5, 255, 161)
+        Color32::from_rgb(125, 190, 145)
     }
+
+    // ── Surfaces — cool-tinted, near-black ──────────────────────────
     fn background(&self) -> Color32 {
-        Color32::from_rgb(10, 5, 20)
+        Color32::from_rgb(14, 16, 22)
     }
     fn surface(&self) -> Color32 {
-        Color32::from_rgb(20, 9, 30)
+        Color32::from_rgb(20, 23, 31)
     }
-    fn surface_alt(&self) -> Color32 {
-        Color32::from_rgb(28, 15, 42)
+    fn surface_elevated(&self) -> Color32 {
+        Color32::from_rgb(28, 32, 42)
     }
+
+    // ── Foreground ──────────────────────────────────────────────────
     fn text(&self) -> Color32 {
-        Color32::from_rgb(230, 241, 255)
+        // Cool off-white — never pure white on dark.
+        Color32::from_rgb(220, 226, 234)
     }
     fn text_muted(&self) -> Color32 {
-        Color32::from_rgb(122, 105, 144)
+        Color32::from_rgb(130, 138, 152)
     }
     fn border(&self) -> Color32 {
-        Color32::from_rgb(61, 42, 92)
+        Color32::from_rgb(52, 58, 72)
     }
 }
