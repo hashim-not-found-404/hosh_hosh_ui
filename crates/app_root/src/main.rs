@@ -41,29 +41,33 @@ impl App for DemoApp {
 
 fn fun_name3() -> impl Fn(&mut Ui) {
     |ui| {
-        DefaultPrimaryButton::render(ui, &CyberpunkTheme, "FIXED 4");
+        DefaultSecondaryButton::render(ui, &CyberpunkTheme, "SecondaryButton CyberpunkTheme");
     }
 }
 
 fn fun_name2() -> impl Fn(&mut Ui) {
     |ui| {
-        if DefaultPrimaryButton::render(ui, &CyberpunkTheme, "FIXED 3").clicked() {
-            println!("clicked FIXED 3");
+        if DefaultSecondaryButton::render(ui, &DefaultTheme, "SecondaryButton DefaultTheme")
+            .clicked()
+        {
+            println!("SecondaryButton");
         }
     }
 }
 
 fn fun_name1() -> impl Fn(&mut Ui) {
     |ui| {
-        if DefaultPrimaryButton::render(ui, &CyberpunkTheme, "FIXED 2").clicked() {
-            println!("clicked FIXED 2");
+        if DefaultPrimaryButton::render(ui, &CyberpunkTheme, "PrimaryButton CyberpunkTheme")
+            .clicked()
+        {
+            println!("PrimaryButton");
         }
     }
 }
 
 fn fun_name() -> impl Fn(&mut Ui) {
     |ui| {
-        DefaultPrimaryButton::render(ui, &DefaultTheme, "FIXED 1");
+        DefaultPrimaryButton::render(ui, &DefaultTheme, "PrimaryButton DefaultTheme");
     }
 }
 

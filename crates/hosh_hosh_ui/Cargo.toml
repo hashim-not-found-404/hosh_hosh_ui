@@ -4,7 +4,7 @@ name = "hosh_hosh_ui"
 version = "0.1.0"
 
 [dependencies]
-component_primary_button.workspace = true
+component_button.workspace = true
 eframe.workspace = true
 layouts.workspace = true
 prelude.workspace = true

@@ -1,9 +1,11 @@
-pub use component_primary_button::DefaultPrimaryButton;
+pub use component_button::DefaultPrimaryButton;
+pub use component_button::DefaultSecondaryButton;
 pub use eframe;
 pub use layouts::Horizontal;
 pub use layouts::Node;
 pub use layouts::Vertical;
 pub use prelude::DefaultTheme;
 pub use prelude::PrimaryButton;
+pub use prelude::SecondaryButton;
 pub use prelude::Theme;
 pub use prelude::egui;
