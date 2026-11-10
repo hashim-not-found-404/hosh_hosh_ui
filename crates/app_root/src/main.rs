@@ -1,8 +1,8 @@
-use hosh_hosh_ui::eframe::run_native;
 use hosh_hosh_ui::eframe::App;
 use hosh_hosh_ui::eframe::Frame;
 use hosh_hosh_ui::eframe::NativeOptions;
 use hosh_hosh_ui::eframe::Result;
+use hosh_hosh_ui::eframe::run_native;
 use hosh_hosh_ui::egui::CentralPanel;
 use hosh_hosh_ui::egui::Color32;
 use hosh_hosh_ui::egui::Ui;
