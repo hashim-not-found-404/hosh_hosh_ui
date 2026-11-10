@@ -12,6 +12,7 @@ resolver = "3"
 [workspace.dependencies]
 # internal crates
 component_button.path = "./crates/component/button"
+component_toggle_button.path = "./crates/component/toggle_button"
 hosh_hosh_ui.path = "./crates/hosh_hosh_ui"
 interfaces.path = "./crates/interfaces"
 layouts.path = "./crates/layouts"

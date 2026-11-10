@@ -127,10 +127,6 @@ pub trait SecondaryButton: Send + Sync + 'static {
     fn render(ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
 }
 
-pub trait GhostButton: Send + Sync + 'static {
-    fn render(ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
-}
-
-pub trait DangerButton: Send + Sync + 'static {
-    fn render(ui: &mut Ui, theme: &dyn Theme, label: &str) -> Response;
+pub trait ToggleButton: Send + Sync + 'static {
+    fn render(ui: &mut Ui, theme: &dyn Theme, value: &mut bool, label: &str) -> Response;
 }

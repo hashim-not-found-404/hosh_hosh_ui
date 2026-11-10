@@ -29,6 +29,7 @@ impl App for DemoApp {
         CentralPanel::default().show(ui, |ui| {
             Horizontal::default()
                 .child(Horizontal::default().child(fun_name()))
+                .child(fun_toggle())
                 .child(
                     Horizontal::default()
                         .child(Vertical::default().child(fun_name1()).child(fun_name2()))
@@ -68,6 +69,16 @@ fn fun_name1() -> impl Fn(&mut Ui) {
 fn fun_name() -> impl Fn(&mut Ui) {
     |ui| {
         DefaultPrimaryButton::render(ui, &DefaultTheme, "PrimaryButton DefaultTheme");
+    }
+}
+
+fn fun_toggle() -> impl Fn(&mut Ui) {
+    |ui| {
+        let id = hosh_hosh_ui::egui::Id::unique("demo-toggle");
+        let mut on = ui.ctx().data(|d| d.get_temp::<bool>(id).unwrap_or(false));
+        if DefaultToggleButton::render(ui, &CyberpunkTheme, &mut on, "POWER").changed() {
+            ui.ctx().data_mut(|d| d.insert_temp(id, on));
+        }
     }
 }
 

@@ -1,0 +1,7 @@
+[package]
+edition = "2024"
+name = "component_toggle_button"
+version = "0.1.0"
+
+[dependencies]
+prelude.workspace = true
