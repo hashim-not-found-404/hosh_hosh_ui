@@ -29,11 +29,13 @@ impl App for DemoApp {
         CentralPanel::default().show(ui, |ui| {
             Horizontal::default()
                 .child(Horizontal::default().child(fun_name()))
+                .child(fun_dropdown1())
                 .child(fun_toggle())
                 .child(
                     Horizontal::default()
                         .child(Vertical::default().child(fun_name1()).child(fun_name2()))
-                        .child(fun_name3()),
+                        .child(fun_name3())
+                        .child(fun_dropdown()),
                 )
                 .render(ui);
         });
@@ -78,6 +80,42 @@ fn fun_toggle() -> impl Fn(&mut Ui) {
         let mut on = ui.ctx().data(|d| d.get_temp::<bool>(id).unwrap_or(false));
         if DefaultToggleButton::render(ui, &CyberpunkTheme, &mut on, "POWER").changed() {
             ui.ctx().data_mut(|d| d.insert_temp(id, on));
+        }
+    }
+}
+
+fn fun_dropdown() -> impl Fn(&mut Ui) {
+    |ui| {
+        let id = hosh_hosh_ui::egui::Id::unique("demo-dropdown");
+        let mut sel = ui.ctx().data(|d| d.get_temp::<usize>(id).unwrap_or(0));
+        if DefaultDropdownButton::render(
+            ui,
+            &CyberpunkTheme,
+            &mut sel,
+            &["DEBIT", "CREDIT", "TRANSFER"],
+            "TYPE: ",
+        )
+        .changed()
+        {
+            ui.ctx().data_mut(|d| d.insert_temp(id, sel));
+        }
+    }
+}
+
+fn fun_dropdown1() -> impl Fn(&mut Ui) {
+    |ui| {
+        let id = hosh_hosh_ui::egui::Id::unique("demo-dropdown");
+        let mut sel = ui.ctx().data(|d| d.get_temp::<usize>(id).unwrap_or(0));
+        if DefaultDropdownButton::render(
+            ui,
+            &DefaultTheme,
+            &mut sel,
+            &["DEBIT", "CREDIT", "TRANSFER"],
+            "TYPE: ",
+        )
+        .changed()
+        {
+            ui.ctx().data_mut(|d| d.insert_temp(id, sel));
         }
     }
 }

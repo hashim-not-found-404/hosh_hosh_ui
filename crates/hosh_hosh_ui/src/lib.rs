@@ -1,11 +1,13 @@
 pub use component_button::DefaultPrimaryButton;
 pub use component_button::DefaultSecondaryButton;
+pub use component_dropdown_button::DefaultDropdownButton;
 pub use component_toggle_button::DefaultToggleButton;
 pub use eframe;
 pub use layouts::Horizontal;
 pub use layouts::Node;
 pub use layouts::Vertical;
 pub use prelude::DefaultTheme;
+pub use prelude::DropdownButton;
 pub use prelude::PrimaryButton;
 pub use prelude::SecondaryButton;
 pub use prelude::Theme;

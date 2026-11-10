@@ -1,5 +1,6 @@
 pub use egui;
 pub use interfaces::DefaultTheme;
+pub use interfaces::DropdownButton;
 pub use interfaces::PrimaryButton;
 pub use interfaces::SecondaryButton;
 pub use interfaces::Theme;
