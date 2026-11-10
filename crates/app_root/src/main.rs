@@ -5,6 +5,7 @@ use hosh_hosh_ui::eframe::Result;
 use hosh_hosh_ui::eframe::run_native;
 use hosh_hosh_ui::egui::CentralPanel;
 use hosh_hosh_ui::egui::Color32;
+use hosh_hosh_ui::egui::Id;
 use hosh_hosh_ui::egui::Ui;
 use hosh_hosh_ui::egui::ViewportBuilder;
 use hosh_hosh_ui::*;
@@ -27,56 +28,32 @@ struct DemoApp;
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
-            Horizontal::default()
-                .child(Horizontal::default().child(fun_name()))
-                .child(fun_dropdown1())
+            Vertical::default()
+                .child(fun_primary_button())
+                .child(fun_secondary_button())
+                .child(fun_dropdown())
                 .child(fun_toggle())
-                .child(
-                    Horizontal::default()
-                        .child(Vertical::default().child(fun_name1()).child(fun_name2()))
-                        .child(fun_name3())
-                        .child(fun_dropdown()),
-                )
+                .child(fun_input())
                 .render(ui);
         });
     }
 }
 
-fn fun_name3() -> impl Fn(&mut Ui) {
+fn fun_secondary_button() -> impl Fn(&mut Ui) {
     |ui| {
         DefaultSecondaryButton::render(ui, &CyberpunkTheme, "SecondaryButton CyberpunkTheme");
     }
 }
 
-fn fun_name2() -> impl Fn(&mut Ui) {
+fn fun_primary_button() -> impl Fn(&mut Ui) {
     |ui| {
-        if DefaultSecondaryButton::render(ui, &DefaultTheme, "SecondaryButton DefaultTheme")
-            .clicked()
-        {
-            println!("SecondaryButton");
-        }
-    }
-}
-
-fn fun_name1() -> impl Fn(&mut Ui) {
-    |ui| {
-        if DefaultPrimaryButton::render(ui, &CyberpunkTheme, "PrimaryButton CyberpunkTheme")
-            .clicked()
-        {
-            println!("PrimaryButton");
-        }
-    }
-}
-
-fn fun_name() -> impl Fn(&mut Ui) {
-    |ui| {
-        DefaultPrimaryButton::render(ui, &DefaultTheme, "PrimaryButton DefaultTheme");
+        DefaultPrimaryButton::render(ui, &CyberpunkTheme, "PrimaryButton CyberpunkTheme");
     }
 }
 
 fn fun_toggle() -> impl Fn(&mut Ui) {
     |ui| {
-        let id = hosh_hosh_ui::egui::Id::unique("demo-toggle");
+        let id = Id::unique("demo-toggle");
         let mut on = ui.ctx().data(|d| d.get_temp::<bool>(id).unwrap_or(false));
         if DefaultToggleButton::render(ui, &CyberpunkTheme, &mut on, "POWER").changed() {
             ui.ctx().data_mut(|d| d.insert_temp(id, on));
@@ -86,7 +63,7 @@ fn fun_toggle() -> impl Fn(&mut Ui) {
 
 fn fun_dropdown() -> impl Fn(&mut Ui) {
     |ui| {
-        let id = hosh_hosh_ui::egui::Id::unique("demo-dropdown");
+        let id = Id::unique("demo-dropdown");
         let mut sel = ui.ctx().data(|d| d.get_temp::<usize>(id).unwrap_or(0));
         if DefaultDropdownButton::render(
             ui,
@@ -102,20 +79,14 @@ fn fun_dropdown() -> impl Fn(&mut Ui) {
     }
 }
 
-fn fun_dropdown1() -> impl Fn(&mut Ui) {
+fn fun_input() -> impl Fn(&mut Ui) {
     |ui| {
-        let id = hosh_hosh_ui::egui::Id::unique("demo-dropdown");
-        let mut sel = ui.ctx().data(|d| d.get_temp::<usize>(id).unwrap_or(0));
-        if DefaultDropdownButton::render(
-            ui,
-            &DefaultTheme,
-            &mut sel,
-            &["DEBIT", "CREDIT", "TRANSFER"],
-            "TYPE: ",
-        )
-        .changed()
-        {
-            ui.ctx().data_mut(|d| d.insert_temp(id, sel));
+        let id = Id::unique("demo-input");
+        let mut text = ui
+            .ctx()
+            .data(|d| d.get_temp::<String>(id).unwrap_or_default());
+        if DefaultInputField::render(ui, &CyberpunkTheme, &mut text, "NAME").changed() {
+            ui.ctx().data_mut(|d| d.insert_temp(id, text));
         }
     }
 }

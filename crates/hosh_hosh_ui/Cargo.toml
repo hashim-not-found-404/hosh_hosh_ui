@@ -6,6 +6,7 @@ version = "0.1.0"
 [dependencies]
 component_button.workspace = true
 component_dropdown_button.workspace = true
+component_input_field.workspace = true
 component_toggle_button.workspace = true
 eframe.workspace = true
 layouts.workspace = true

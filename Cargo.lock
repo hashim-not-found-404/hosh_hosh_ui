@@ -653,6 +653,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "component_input_field"
+version = "0.1.0"
+dependencies = [
+ "prelude",
+]
+
+[[package]]
 name = "component_toggle_button"
 version = "0.1.0"
 dependencies = [
@@ -1475,6 +1482,7 @@ version = "0.1.0"
 dependencies = [
  "component_button",
  "component_dropdown_button",
+ "component_input_field",
  "component_toggle_button",
  "eframe",
  "layouts",

@@ -140,3 +140,7 @@ pub trait DropdownButton: Send + Sync + 'static {
         label: &str,
     ) -> Response;
 }
+
+pub trait InputField: Send + Sync + 'static {
+    fn render(ui: &mut Ui, theme: &dyn Theme, value: &mut String, label: &str) -> Response;
+}
