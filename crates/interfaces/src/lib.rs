@@ -154,3 +154,7 @@ pub trait InputList: Send + Sync + 'static {
         label: &str,
     ) -> Response;
 }
+
+pub trait Label: Send + Sync + 'static {
+    fn render(ui: &mut Ui, theme: &dyn Theme, text: &str) -> Response;
+}

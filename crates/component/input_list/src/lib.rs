@@ -1,5 +1,5 @@
-use prelude::egui::pos2;
-use prelude::egui::vec2;
+use prelude::InputList;
+use prelude::Theme;
 use prelude::egui::Align2;
 use prelude::egui::Area;
 use prelude::egui::Color32;
@@ -17,8 +17,8 @@ use prelude::egui::Shape;
 use prelude::egui::Stroke;
 use prelude::egui::Ui;
 use prelude::egui::Vec2;
-use prelude::InputList;
-use prelude::Theme;
+use prelude::egui::pos2;
+use prelude::egui::vec2;
 
 // ─── Tuning ──────────────────────────────────────────────────────────
 const FACE_PAD: f32 = 6.0;
@@ -765,11 +765,7 @@ fn glitch_intensity(ui: &Ui, response: &Response, time: f64) -> f32 {
     let key = response.id.with("glitch_at");
     let last = ui.ctx().data(|d| d.get_temp::<f64>(key)).unwrap_or(-1000.0);
     let t = ((time - last) / GLITCH_DURATION).clamp(0.0, 1.0) as f32;
-    if t < 1.0 {
-        (1.0 - t).powi(2)
-    } else {
-        0.0
-    }
+    if t < 1.0 { (1.0 - t).powi(2) } else { 0.0 }
 }
 
 // ─── Paint primitives ──────────────────────────────────────────────

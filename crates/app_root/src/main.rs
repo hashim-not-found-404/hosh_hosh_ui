@@ -29,6 +29,7 @@ impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
             Vertical::default()
+                .child(fun_label())
                 .child(fun_primary_button())
                 .child(fun_secondary_button())
                 .child(fun_dropdown())
@@ -109,6 +110,12 @@ fn fun_input_list() -> impl Fn(&mut Ui) {
         {
             ui.ctx().data_mut(|d| d.insert_temp(id, text));
         }
+    }
+}
+
+fn fun_label() -> impl Fn(&mut Ui) {
+    |ui| {
+        DefaultLabel::render(ui, &CyberpunkTheme, "ACCOUNT SETTINGS");
     }
 }
 
