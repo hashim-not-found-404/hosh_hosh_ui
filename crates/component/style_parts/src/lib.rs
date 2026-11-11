@@ -21,11 +21,12 @@ pub fn render(ui: &mut Ui) -> Response {
 
     let painter = ui.painter();
     let time = ui.input(|i| i.time);
+    let seed = time.to_bits();
 
     let inner_rect = make_inner_rect(&outer_rect);
     let points = make_border_shape(&inner_rect, 8.0);
-    let glitches = make_glitch_pixels(&points, 25.0, time as u64);
-    let lines = make_random_horizontal_lines(&points, 25.0, time as u64);
+    let glitches = make_glitch_pixels(&points, 25.0, seed);
+    let lines = make_random_horizontal_lines(&points, 25.0, seed);
     let scan = make_scan_line(&points, time, 48.0);
 
     draw_border(painter, Color32::WHITE, points.clone(), 1.0);
@@ -62,6 +63,20 @@ fn drow_lines(painter: &Painter, color: Color32, lines: Vec<(Pos2, Pos2)>, width
     for (a, b) in lines {
         painter.line_segment([a, b], stroke);
     }
+}
+
+fn draw_scan_line(painter: &Painter, color: Color32, line: (Pos2, Pos2), width: f32) {
+    let (a, b) = line;
+
+    // Degenerate (make_scan_line bailed out) → nothing to draw.
+    if (a.x - b.x).abs() < 0.5 && (a.y - b.y).abs() < 0.5 {
+        return;
+    }
+    if width <= 0.0 || !width.is_finite() {
+        return;
+    }
+
+    painter.line_segment([a, b], Stroke::new(width, color));
 }
 
 fn make_border_shape(rect: &Rect, corner: f32) -> Vec<Pos2> {
@@ -279,18 +294,4 @@ fn make_scan_line(shape: &Vec<Pos2>, time: f64, speed_in_pexels_in_seconds: f32)
     // polygon outline at this y, so they touch the left/right
     // borders too (including where the cut corners narrow it).
     (pos2(x_min, y), pos2(x_max, y))
-}
-
-fn draw_scan_line(painter: &Painter, color: Color32, line: (Pos2, Pos2), width: f32) {
-    let (a, b) = line;
-
-    // Degenerate (make_scan_line bailed out) → nothing to draw.
-    if (a.x - b.x).abs() < 0.5 && (a.y - b.y).abs() < 0.5 {
-        return;
-    }
-    if width <= 0.0 || !width.is_finite() {
-        return;
-    }
-
-    painter.line_segment([a, b], Stroke::new(width, color));
 }
