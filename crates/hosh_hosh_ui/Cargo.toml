@@ -8,6 +8,7 @@ component_button.workspace = true
 component_dropdown_button.workspace = true
 component_input_field.workspace = true
 component_input_list.workspace = true
+component_style_parts.workspace = true
 component_label.workspace = true
 component_toggle_button.workspace = true
 eframe.workspace = true

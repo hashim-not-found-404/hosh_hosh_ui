@@ -28,14 +28,25 @@ struct DemoApp;
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
-            Vertical::default()
-                .child(fun_label())
-                .child(fun_primary_button())
-                .child(fun_secondary_button())
-                .child(fun_dropdown())
-                .child(fun_toggle())
-                .child(fun_input())
-                .child(fun_input_list())
+            Horizontal::default()
+                .child(fun_preview())
+                .child(fun_preview())
+                .child(fun_preview())
+                .child(fun_preview())
+                .child(
+                    Vertical::default()
+                        .child(fun_preview())
+                        .child(fun_preview())
+                        .child(fun_preview())
+                        .child(fun_preview()),
+                )
+                // .child(fun_label())
+                // .child(fun_primary_button())
+                // .child(fun_secondary_button())
+                // .child(fun_dropdown())
+                // .child(fun_toggle())
+                // .child(fun_input())
+                // .child(fun_input_list())
                 .render(ui);
         });
     }
@@ -116,6 +127,12 @@ fn fun_input_list() -> impl Fn(&mut Ui) {
 fn fun_label() -> impl Fn(&mut Ui) {
     |ui| {
         DefaultLabel::render(ui, &CyberpunkTheme, "ACCOUNT SETTINGS");
+    }
+}
+
+fn fun_preview() -> impl Fn(&mut Ui) {
+    |ui| {
+        render(ui);
     }
 }
 
