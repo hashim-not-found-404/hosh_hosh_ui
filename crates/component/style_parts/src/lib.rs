@@ -28,7 +28,9 @@ pub fn render(ui: &mut Ui) -> Response {
     let glitches = make_glitch_pixels(&points, 25.0, seed);
     let lines = make_random_horizontal_lines(&points, 25.0, seed);
     let scan = make_scan_line(&points, time, 48.0);
+    let glows = make_glow(&outer_rect, &points, 4);
 
+    draw_glow(painter, Color32::GREEN, &glows);
     draw_border(painter, Color32::WHITE, points.clone(), 1.0);
     fill_shape(painter, Color32::GREEN, points.clone());
     draw_glitches(painter, Color32::BLACK, glitches);
@@ -40,15 +42,15 @@ pub fn render(ui: &mut Ui) -> Response {
     response
 }
 
-fn draw_border(painter: &Painter, color: Color32, points: Vec<Pos2>, width: f32) {
+pub fn draw_border(painter: &Painter, color: Color32, points: Vec<Pos2>, width: f32) {
     painter.add(Shape::closed_line(points, Stroke::new(width, color)));
 }
 
-fn fill_shape(painter: &Painter, color: Color32, points: Vec<Pos2>) {
+pub fn fill_shape(painter: &Painter, color: Color32, points: Vec<Pos2>) {
     painter.add(Shape::convex_polygon(points, color, Stroke::NONE));
 }
 
-fn draw_glitches(painter: &Painter, color: Color32, points: Vec<Pos2>) {
+pub fn draw_glitches(painter: &Painter, color: Color32, points: Vec<Pos2>) {
     for p in points {
         painter.rect_filled(
             Rect::from_min_max(p, pos2(p.x + 1.0, p.y + 1.0)),
@@ -58,14 +60,14 @@ fn draw_glitches(painter: &Painter, color: Color32, points: Vec<Pos2>) {
     }
 }
 
-fn drow_lines(painter: &Painter, color: Color32, lines: Vec<(Pos2, Pos2)>, width: f32) {
+pub fn drow_lines(painter: &Painter, color: Color32, lines: Vec<(Pos2, Pos2)>, width: f32) {
     let stroke = Stroke::new(width, color);
     for (a, b) in lines {
         painter.line_segment([a, b], stroke);
     }
 }
 
-fn draw_scan_line(painter: &Painter, color: Color32, line: (Pos2, Pos2), width: f32) {
+pub fn draw_scan_line(painter: &Painter, color: Color32, line: (Pos2, Pos2), width: f32) {
     let (a, b) = line;
 
     // Degenerate (make_scan_line bailed out) → nothing to draw.
@@ -79,7 +81,38 @@ fn draw_scan_line(painter: &Painter, color: Color32, line: (Pos2, Pos2), width: 
     painter.line_segment([a, b], Stroke::new(width, color));
 }
 
-fn make_border_shape(rect: &Rect, corner: f32) -> Vec<Pos2> {
+pub fn draw_glow(painter: &Painter, color: Color32, glows: &[Vec<Pos2>]) {
+    let n = glows.len();
+    if n == 0 {
+        return;
+    }
+
+    // Alpha ramps outermost→innermost, matching the button's
+    // 0.06 → 0.22 profile generalized to N layers. Outermost stays
+    // very faint (6/255 ≈ 2%); innermost is faint-but-visible
+    // (60/255 ≈ 24%). Anything brighter reads as a solid halo,
+    // not a glow.
+    const OUTER_ALPHA: f32 = 6.0;
+    const INNER_ALPHA: f32 = 60.0;
+
+    for (i, layer) in glows.iter().enumerate() {
+        let t = if n > 1 {
+            i as f32 / (n - 1) as f32
+        } else {
+            0.0
+        };
+        let alpha = OUTER_ALPHA + (INNER_ALPHA - OUTER_ALPHA) * t;
+        let c = Color32::from_rgba_unmultiplied(
+            color.r(),
+            color.g(),
+            color.b(),
+            alpha.clamp(0.0, 255.0) as u8,
+        );
+        painter.add(Shape::convex_polygon(layer.clone(), c, Stroke::NONE));
+    }
+}
+
+pub fn make_border_shape(rect: &Rect, corner: f32) -> Vec<Pos2> {
     let corner = corner
         .min(rect.width() / 2.0)
         .min(rect.height() / 2.0)
@@ -97,11 +130,15 @@ fn make_border_shape(rect: &Rect, corner: f32) -> Vec<Pos2> {
     ]
 }
 
-fn make_inner_rect(outer_rect: &Rect) -> Rect {
+pub fn make_inner_rect(outer_rect: &Rect) -> Rect {
     outer_rect.shrink(8.0)
 }
 
-fn make_random_horizontal_lines(shape: &Vec<Pos2>, density: f32, seed: u64) -> Vec<(Pos2, Pos2)> {
+pub fn make_random_horizontal_lines(
+    shape: &Vec<Pos2>,
+    density: f32,
+    seed: u64,
+) -> Vec<(Pos2, Pos2)> {
     if shape.len() < 3 || density <= 0.0 || !density.is_finite() {
         return Vec::new();
     }
@@ -220,7 +257,11 @@ fn make_random_horizontal_lines(shape: &Vec<Pos2>, density: f32, seed: u64) -> V
     out
 }
 
-fn make_scan_line(shape: &Vec<Pos2>, time: f64, speed_in_pexels_in_seconds: f32) -> (Pos2, Pos2) {
+pub fn make_scan_line(
+    shape: &Vec<Pos2>,
+    time: f64,
+    speed_in_pexels_in_seconds: f32,
+) -> (Pos2, Pos2) {
     let time = time as f32;
 
     if shape.len() < 3 {
@@ -294,4 +335,56 @@ fn make_scan_line(shape: &Vec<Pos2>, time: f64, speed_in_pexels_in_seconds: f32)
     // polygon outline at this y, so they touch the left/right
     // borders too (including where the cut corners narrow it).
     (pos2(x_min, y), pos2(x_max, y))
+}
+
+pub fn make_glow(outer_rect: &Rect, shape: &Vec<Pos2>, layers_of_glow: u8) -> Vec<Vec<Pos2>> {
+    if shape.len() < 3 || layers_of_glow == 0 {
+        return Vec::new();
+    }
+
+    let center = outer_rect.center();
+    let short = outer_rect.width().min(outer_rect.height());
+    if short <= 0.0 {
+        return Vec::new();
+    }
+
+    // Normalize the "expand by k px" scaling: distance from center to
+    // the farthest vertex. Scaling by `1 + k / max_dist` moves every
+    // vertex outward by roughly k px along its radial direction, so
+    // the visual ring width matches the requested px amount.
+    let max_dist = shape
+        .iter()
+        .map(|p| (*p - center).length())
+        .fold(0.0_f32, f32::max)
+        .max(1.0);
+
+    // Match the button's glow profile:
+    //   outermost  ≈ 30% of short, capped at 12 px
+    //   innermost  ≈ 3 px (never thinner than this)
+    // Linear interpolation between the two across N layers.
+    const MAX_EXPAND_PX: f32 = 12.0;
+    const MIN_EXPAND_PX: f32 = 3.0;
+    let outer_px = (short * 0.30).min(MAX_EXPAND_PX);
+    let inner_px = MIN_EXPAND_PX.min(outer_px);
+
+    let n = layers_of_glow as usize;
+    let mut layers = Vec::with_capacity(n);
+    for i in 0..n {
+        // i = 0 → outermost (largest, dimmest)
+        // i = n-1 → innermost (smallest, brightest)
+        let t = if n > 1 {
+            i as f32 / (n - 1) as f32
+        } else {
+            0.0
+        };
+        let expand = outer_px + (inner_px - outer_px) * t;
+        let scale = 1.0 + expand / max_dist;
+        layers.push(
+            shape
+                .iter()
+                .map(|p| center + (*p - center) * scale)
+                .collect(),
+        );
+    }
+    layers
 }
