@@ -1,13 +1,3 @@
-use prelude::egui::Color32;
-use prelude::egui::Painter;
-use prelude::egui::Pos2;
-use prelude::egui::Rect;
-use prelude::egui::Response;
-use prelude::egui::Sense;
-use prelude::egui::Shape;
-use prelude::egui::Stroke;
-use prelude::egui::Ui;
-
 pub use crate::border::draw as draw_border;
 pub use crate::border::make as make_border;
 pub use crate::glitches::draw as draw_glitches;
@@ -20,6 +10,15 @@ pub use crate::random_horizontal_lines::drow as drow_random_horizontal_lines;
 pub use crate::random_horizontal_lines::make as make_random_horizontal_lines;
 pub use crate::scan_line::draw as draw_scan_line;
 pub use crate::scan_line::make as make_scan_line;
+use prelude::egui::Color32;
+use prelude::egui::Painter;
+use prelude::egui::Pos2;
+use prelude::egui::Rect;
+use prelude::egui::Response;
+use prelude::egui::Sense;
+use prelude::egui::Shape;
+use prelude::egui::Stroke;
+use prelude::egui::Ui;
 
 mod border;
 mod glitches;

@@ -1,4 +1,10 @@
-use prelude::egui::{Color32, Painter, Pos2, Rect, Shape, Stroke, pos2};
+use prelude::egui::Color32;
+use prelude::egui::Painter;
+use prelude::egui::Pos2;
+use prelude::egui::Rect;
+use prelude::egui::Shape;
+use prelude::egui::Stroke;
+use prelude::egui::pos2;
 
 pub fn draw(painter: &Painter, color: Color32, points: Vec<Pos2>, width: f32) {
     painter.add(Shape::closed_line(points, Stroke::new(width, color)));

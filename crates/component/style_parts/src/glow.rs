@@ -1,4 +1,9 @@
-use prelude::egui::{Color32, Painter, Pos2, Rect, Shape, Stroke};
+use prelude::egui::Color32;
+use prelude::egui::Painter;
+use prelude::egui::Pos2;
+use prelude::egui::Rect;
+use prelude::egui::Shape;
+use prelude::egui::Stroke;
 
 pub fn draw(painter: &Painter, color: Color32, glows: &[Vec<Pos2>]) {
     let n = glows.len();

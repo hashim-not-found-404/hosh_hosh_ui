@@ -1,4 +1,8 @@
-use prelude::egui::{Color32, Painter, Pos2, Stroke, pos2};
+use prelude::egui::Color32;
+use prelude::egui::Painter;
+use prelude::egui::Pos2;
+use prelude::egui::Stroke;
+use prelude::egui::pos2;
 
 pub fn draw(
     painter: &Painter,
