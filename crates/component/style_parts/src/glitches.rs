@@ -1,6 +1,7 @@
-use prelude::egui::{Pos2, pos2};
+use prelude::egui::Pos2;
+use prelude::egui::pos2;
 
-pub(crate) fn make_glitch_pixels(shape: Vec<Pos2>, density: f32, seed: u64) -> Vec<Pos2> {
+pub(crate) fn make_glitch_pixels(shape: &Vec<Pos2>, density: f32, seed: u64) -> Vec<Pos2> {
     if shape.len() < 3 || density <= 0.0 || !density.is_finite() {
         return Vec::new();
     }
