@@ -26,23 +26,25 @@ pub fn render(ui: &mut Ui) -> Response {
     let glitches = make_glitch_pixels(&points, 25.0, 1000);
     let lines = make_random_horizontal_lines(&points, 25.0, 1000);
 
-    draw_border(painter, points.clone(), Color32::WHITE, 1.0);
-    fill_shape(painter, points.clone(), Color32::GREEN);
-    draw_glitches(painter, glitches, Color32::BLACK);
-    drow_lines(painter, lines, Color32::GRAY, 1.0);
+    draw_border(painter, Color32::WHITE, points.clone(), 1.0);
+    fill_shape(painter, Color32::GREEN, points.clone());
+    draw_glitches(painter, Color32::BLACK, glitches);
+    drow_lines(painter, Color32::GRAY, lines, 1.0);
+
+    ui.request_repaint();
 
     response
 }
 
-fn draw_border(painter: &Painter, points: Vec<Pos2>, color: Color32, width: f32) {
+fn draw_border(painter: &Painter, color: Color32, points: Vec<Pos2>, width: f32) {
     painter.add(Shape::closed_line(points, Stroke::new(width, color)));
 }
 
-fn fill_shape(painter: &Painter, points: Vec<Pos2>, color: Color32) {
+fn fill_shape(painter: &Painter, color: Color32, points: Vec<Pos2>) {
     painter.add(Shape::convex_polygon(points, color, Stroke::NONE));
 }
 
-fn draw_glitches(painter: &Painter, points: Vec<Pos2>, color: Color32) {
+fn draw_glitches(painter: &Painter, color: Color32, points: Vec<Pos2>) {
     for p in points {
         painter.rect_filled(
             Rect::from_min_max(p, pos2(p.x + 1.0, p.y + 1.0)),
@@ -52,7 +54,7 @@ fn draw_glitches(painter: &Painter, points: Vec<Pos2>, color: Color32) {
     }
 }
 
-fn drow_lines(painter: &Painter, lines: Vec<(Pos2, Pos2)>, color: Color32, width: f32) {
+fn drow_lines(painter: &Painter, color: Color32, lines: Vec<(Pos2, Pos2)>, width: f32) {
     let stroke = Stroke::new(width, color);
     for (a, b) in lines {
         painter.line_segment([a, b], stroke);
@@ -198,4 +200,12 @@ fn make_random_horizontal_lines(shape: &Vec<Pos2>, density: f32, seed: u64) -> V
     }
 
     out
+}
+
+fn make_scan_line(shape: &Vec<Pos2>, time: f32) -> (Pos2, Pos2) {
+    todo!()
+}
+
+fn draw_scan_line(painter: &Painter, color: Color32, line: (Pos2, Pos2)) {
+    todo!()
 }
