@@ -1,7 +1,20 @@
+use prelude::egui::Color32;
+use prelude::egui::Painter;
 use prelude::egui::Pos2;
+use prelude::egui::Rect;
 use prelude::egui::pos2;
 
-pub(crate) fn make_glitch_pixels(shape: &Vec<Pos2>, density: f32, seed: u64) -> Vec<Pos2> {
+pub fn draw(painter: &Painter, color: Color32, points: Vec<Pos2>) {
+    for p in points {
+        painter.rect_filled(
+            Rect::from_min_max(p, pos2(p.x + 1.0, p.y + 1.0)),
+            0.0,
+            color,
+        );
+    }
+}
+
+pub fn make(shape: &Vec<Pos2>, density: f32, seed: u64) -> Vec<Pos2> {
     if shape.len() < 3 || density <= 0.0 || !density.is_finite() {
         return Vec::new();
     }
