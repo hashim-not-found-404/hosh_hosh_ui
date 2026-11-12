@@ -29,16 +29,16 @@ impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
             Horizontal::default()
-                .child(fun_preview())
-                .child(fun_preview())
-                .child(fun_preview())
-                .child(fun_preview())
+                .child(fun_primary_button())
+                .child(fun_primary_button())
+                .child(fun_secondary_button())
+                .child(fun_secondary_button())
                 .child(
                     Vertical::default()
-                        .child(fun_preview())
-                        .child(fun_preview())
-                        .child(fun_preview())
-                        .child(fun_preview()),
+                        .child(fun_primary_button())
+                        .child(fun_primary_button())
+                        .child(fun_secondary_button())
+                        .child(fun_secondary_button()),
                 )
                 // .child(fun_label())
                 // .child(fun_primary_button())
@@ -60,7 +60,7 @@ fn fun_secondary_button() -> impl Fn(&mut Ui) {
 
 fn fun_primary_button() -> impl Fn(&mut Ui) {
     |ui| {
-        DefaultPrimaryButton::render(ui, &CyberpunkTheme, "PrimaryButton CyberpunkTheme");
+        DefaultSecondaryButton::render(ui, &CyberpunkTheme, "PrimaryButton CyberpunkTheme");
     }
 }
 
