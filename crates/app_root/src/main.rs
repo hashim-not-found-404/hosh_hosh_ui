@@ -29,7 +29,7 @@ impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
             Vertical::default()
-                // .child(fun_label())
+                .child(fun_label())
                 .child(fun_primary_button())
                 .child(fun_secondary_button())
                 .child(fun_toggle())
