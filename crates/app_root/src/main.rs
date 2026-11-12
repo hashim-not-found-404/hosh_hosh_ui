@@ -28,23 +28,12 @@ struct DemoApp;
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
-            Horizontal::default()
-                .child(fun_primary_button())
-                .child(fun_primary_button())
-                .child(fun_secondary_button())
-                .child(fun_secondary_button())
-                .child(
-                    Vertical::default()
-                        .child(fun_primary_button())
-                        .child(fun_primary_button())
-                        .child(fun_secondary_button())
-                        .child(fun_secondary_button()),
-                )
+            Vertical::default()
                 // .child(fun_label())
-                // .child(fun_primary_button())
-                // .child(fun_secondary_button())
+                .child(fun_primary_button())
+                .child(fun_secondary_button())
+                .child(fun_toggle())
                 // .child(fun_dropdown())
-                // .child(fun_toggle())
                 // .child(fun_input())
                 // .child(fun_input_list())
                 .render(ui);
@@ -67,9 +56,9 @@ fn fun_primary_button() -> impl Fn(&mut Ui) {
 fn fun_toggle() -> impl Fn(&mut Ui) {
     |ui| {
         let id = Id::unique("demo-toggle");
-        let mut on = ui.ctx().data(|d| d.get_temp::<bool>(id).unwrap_or(false));
-        if DefaultToggleButton::render(ui, &CyberpunkTheme, &mut on, "POWER").changed() {
-            ui.ctx().data_mut(|d| d.insert_temp(id, on));
+        let on = ui.ctx().data(|d| d.get_temp::<bool>(id).unwrap_or(false));
+        if DefaultToggleButton::render(ui, &CyberpunkTheme, on, "POWER").clicked() {
+            ui.ctx().data_mut(|d| d.insert_temp(id, on ^ true));
         }
     }
 }

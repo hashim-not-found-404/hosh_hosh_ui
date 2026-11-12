@@ -25,7 +25,7 @@ const CORNER: f32 = 8.0;
 const HOVER_SECS: f32 = 0.20;
 const BORDER_WIDTH: f32 = 1.0;
 const TEXT_DRIFT: f32 = 2.5;
-const GLITCH_DENSE: f32 = 100.0;
+const GLITCH_DENSE: f32 = 400.0;
 
 // ─── Palette — primary is inverted vs secondary ─────────────────────
 const FACE: Color32 = Color32::WHITE;
@@ -87,29 +87,8 @@ fn paint(ui: &mut Ui, color_1: Color32, color_2: Color32, label: &str) -> Respon
 
         draw_glow(painter, color_1, &glows);
     }
-    if is_animate_hover {
-        let glitches = make_glitches(&points, GLITCH_DENSE, seed);
-        let lines = make_random_horizontal_lines(&points, 25.0, seed);
-        let texts = make_text(
-            &points,
-            label,
-            Align2::CENTER_CENTER,
-            color_2,
-            time.fract() as f32,
-            TEXT_DRIFT,
-            seed,
-        );
 
-        draw_text(
-            painter,
-            Align2::CENTER_CENTER,
-            texts,
-            FontId::monospace(16.0),
-        );
-        draw_glitches(painter, color_2, glitches);
-        drow_random_horizontal_lines(painter, color_2, lines, 1.0);
-    }
-    if is_animate_click {
+    if is_animate_hover || is_animate_click {
         let glitches = make_glitches(&points, GLITCH_DENSE, seed);
         let lines = make_random_horizontal_lines(&points, 25.0, seed);
         let texts = make_text(

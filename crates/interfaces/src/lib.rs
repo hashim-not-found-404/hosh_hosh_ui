@@ -128,7 +128,7 @@ pub trait SecondaryButton: Send + Sync + 'static {
 }
 
 pub trait ToggleButton: Send + Sync + 'static {
-    fn render(ui: &mut Ui, theme: &dyn Theme, value: &mut bool, label: &str) -> Response;
+    fn render(ui: &mut Ui, theme: &dyn Theme, value: bool, label: &str) -> Response;
 }
 
 pub trait DropdownButton: Send + Sync + 'static {
