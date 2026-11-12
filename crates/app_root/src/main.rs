@@ -34,7 +34,7 @@ impl App for DemoApp {
                 .child(fun_secondary_button())
                 .child(fun_toggle())
                 // .child(fun_dropdown())
-                // .child(fun_input())
+                .child(fun_input())
                 // .child(fun_input_list())
                 .render(ui);
         });

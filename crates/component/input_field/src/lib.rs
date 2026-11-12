@@ -1,3 +1,13 @@
+use component_style_parts::draw_border;
+use component_style_parts::draw_glitches;
+use component_style_parts::draw_glow;
+use component_style_parts::drow_random_horizontal_lines;
+use component_style_parts::is_animation;
+use component_style_parts::make_border;
+use component_style_parts::make_glitches;
+use component_style_parts::make_glow;
+use component_style_parts::make_inner_rect;
+use component_style_parts::make_random_horizontal_lines;
 use prelude::InputField;
 use prelude::Theme;
 use prelude::egui::Align2;
@@ -7,100 +17,52 @@ use prelude::egui::Event;
 use prelude::egui::FontId;
 use prelude::egui::Key;
 use prelude::egui::Painter;
-use prelude::egui::Pos2;
 use prelude::egui::Rect;
 use prelude::egui::Response;
 use prelude::egui::Sense;
-use prelude::egui::Shape;
 use prelude::egui::Stroke;
 use prelude::egui::Ui;
 use prelude::egui::pos2;
-use prelude::egui::vec2;
 
-// ─── Tuning ──────────────────────────────────────────────────────────
-const FACE_PAD: f32 = 6.0;
-const CORNER_CUT: f32 = 8.0;
-const GLITCH_DURATION: f64 = 0.22;
-const HOVER_SECS: f32 = 0.16;
-const PRESS_SECS: f32 = 0.05;
-const FOCUS_SECS: f32 = 0.22;
-const FLOAT_SECS: f32 = 0.15;
+const CORNER: f32 = 8.0;
+const BORDER_WIDTH: f32 = 1.0;
+const HOVER_SECS: f32 = 0.20;
+const FOCUS_SECS: f32 = 0.20;
+const GLITCH_DENSE: f32 = 400.0;
+const PAD: f32 = 12.0;
 
-const RGB_R: Color32 = Color32::from_rgb(255, 0, 0);
-const RGB_G: Color32 = Color32::from_rgb(0, 255, 0);
-const RGB_B: Color32 = Color32::from_rgb(0, 0, 255);
-const GHOST_CYAN: Color32 = Color32::from_rgb(40, 220, 255);
+const TEXT_ALPHA: f32 = 160.0;
+const TEXT_ALPHA_FOCUSED: f32 = 230.0;
+const PLACEHOLDER_ALPHA: f32 = 90.0;
 
-// ─── Public API ──────────────────────────────────────────────────────
 pub struct DefaultInputField;
 
 impl InputField for DefaultInputField {
-    fn render(ui: &mut Ui, t: &dyn Theme, value: &mut String, label: &str) -> Response {
-        paint(
-            ui,
-            value,
-            label,
-            t.surface(),
-            (t.border(), t.brand()),
-            t.text(),
-            t.text_muted(),
-        )
+    fn render(ui: &mut Ui, _t: &dyn Theme, value: &mut String, label: &str) -> Response {
+        paint(ui, Color32::WHITE, value, label)
     }
 }
 
-/// Cyberpunk single-line input with a floating label. Fills
-/// `ui.available_size()`.
-///
-/// Colors injected by the caller:
-///   * `face`  — background
-///   * `line`  — (unfocused, focused) accent
-///   * `text`  — value color (also cursor when focused)
-///   * `muted` — label color when idle
-pub fn paint(
-    ui: &mut Ui,
-    value: &mut String,
-    label: &str,
-    face: Color32,
-    line: (Color32, Color32),
-    text: Color32,
-    muted: Color32,
-) -> Response {
-    let (outer, mut response) = ui.allocate_exact_size(ui.available_size(), Sense::click());
-    if outer.width() <= 0.0 || outer.height() <= 0.0 {
+pub fn paint(ui: &mut Ui, color_1: Color32, value: &mut String, label: &str) -> Response {
+    let (outer_rect, mut response) = ui.allocate_exact_size(ui.available_size(), Sense::click());
+    if outer_rect.width() <= 0.0 || outer_rect.height() <= 0.0 {
         return response;
     }
 
+    let time = ui.input(|i| i.time);
+    let seed = time.to_bits();
     let id = response.id;
 
-    // ── Focus management ─────────────────────────────────────────
     let was_focused = ui.ctx().memory(|m| m.has_focus(id));
-    let any_click = ui.input(|i| i.pointer.any_click());
-    let pointer_pos = ui.input(|i| i.pointer.interact_pos());
-    let clicked_inside = response.clicked();
-    let clicked_outside =
-        any_click && !clicked_inside && pointer_pos.map_or(true, |p| !outer.contains(p));
 
-    if clicked_inside {
-        ui.ctx().memory_mut(|m| m.request_focus(id));
-    } else if clicked_outside && was_focused {
-        ui.ctx().memory_mut(|m| m.surrender_focus(id));
-    }
-
-    let focused = ui.ctx().memory(|m| m.has_focus(id));
-
-    // ── Focus change → glitch burst ──────────────────────────────
-    if focused != was_focused {
-        trigger_glitch(ui, &response);
-    }
-
-    // ── Text input events ────────────────────────────────────────
-    if focused {
+    // ── Keyboard input (only when already focused) ───────────────
+    if was_focused {
         let mut new_text = String::new();
-        let mut backspace_count = 0;
+        let mut backspace = 0;
         let mut blur = false;
 
         ui.input_mut(|i| {
-            i.events.retain(|event| match event {
+            i.events.retain(|ev| match ev {
                 Event::Text(t) => {
                     new_text.push_str(t);
                     false
@@ -110,15 +72,13 @@ pub fn paint(
                     pressed: true,
                     ..
                 } => {
-                    backspace_count += 1;
+                    backspace += 1;
                     false
                 }
+                // Only Escape blurs. Enter is intentionally left in
+                // the event stream so the caller can treat it as
+                // "submit" without any visual animation from us.
                 Event::Key {
-                    key: Key::Enter,
-                    pressed: true,
-                    ..
-                }
-                | Event::Key {
                     key: Key::Escape,
                     pressed: true,
                     ..
@@ -135,7 +95,7 @@ pub fn paint(
             value.push_str(&new_text);
             changed = true;
         }
-        for _ in 0..backspace_count {
+        for _ in 0..backspace {
             if value.pop().is_some() {
                 changed = true;
             }
@@ -148,421 +108,132 @@ pub fn paint(
         }
     }
 
-    // ── Animations ──────────────────────────────────────────────
+    // ── Focus acquire / release ──────────────────────────────────
+    if response.clicked() {
+        ui.ctx().memory_mut(|m| m.request_focus(id));
+    } else if was_focused && ui.input(|i| i.pointer.any_click()) {
+        ui.ctx().memory_mut(|m| m.surrender_focus(id));
+    }
+
+    let focused = ui.ctx().memory(|m| m.has_focus(id));
+
+    // ── Animations ───────────────────────────────────────────────
+    let hover = ui
+        .ctx()
+        .animate_bool_with_time(id.with("h"), response.hovered(), HOVER_SECS);
     let focus_t = ui
         .ctx()
-        .animate_bool_with_time(response.id.with("focus"), focused, FOCUS_SECS);
+        .animate_bool_with_time(id.with("f"), focused, FOCUS_SECS);
+    let is_animate_hover = is_animation(ui, id.with("ah"), 0.16, response.hovered());
+    let is_animate_click = is_animation(ui, id.with("ac"), 0.16, response.clicked());
 
-    // Label floats to the top when focused OR has value.
-    let float_t = ui.ctx().animate_bool_with_time(
-        response.id.with("float"),
-        focused || !value.is_empty(),
-        FLOAT_SECS,
-    );
+    // ── Base layers ──────────────────────────────────────────────
+    let inner_rect = make_inner_rect(&outer_rect);
+    let painter = ui.painter();
+    let points = make_border(&inner_rect, CORNER);
 
-    let line_current = lerp(line.0, line.1, focus_t);
-    let pulse = if focused {
-        (ui.input(|i| i.time) * 2.2).sin() as f32 * 0.5 + 0.5
-    } else {
-        0.0
-    };
-
-    let frame = Frame::from_outer(outer);
-    let motion = Motion::from_ui(ui, &response);
-    let painter = ui.painter().with_clip_rect(frame.rect);
-
-    // ── Face ─────────────────────────────────────────────────────
-    draw_face(&painter, &frame, face);
-
-    // ── Hover / press tint ──────────────────────────────────────
-    if motion.hover > 0.01 {
-        draw_frame_tint(&painter, &frame, line_current, 15.0 * motion.hover);
-    }
-    if motion.press > 0.01 {
-        draw_frame_tint(&painter, &frame, line_current, 25.0 * motion.press);
-    }
-
-    // ── Border ───────────────────────────────────────────────────
-    let border_width = 1.0 + focus_t * 0.8 + motion.hover * 0.5 + motion.glitch * 1.5;
-    let border_alpha = 130.0 + 95.0 * focus_t + 30.0 * pulse + 40.0 * motion.hover;
-    draw_border(&painter, &frame, line_current, border_width, border_alpha);
-
-    // ── Corner accent when focused ───────────────────────────────
-    if focus_t > 0.01 {
-        draw_corner_accent(&painter, &frame, line_current, focus_t, pulse);
-    }
-
-    // ── Content ──────────────────────────────────────────────────
-    let cursor_t = ui.input(|i| i.time);
-    let blink = ((cursor_t * 2.0 * std::f64::consts::PI).sin() as f32 * 0.5 + 0.5).clamp(0.0, 1.0);
-    let show_cursor = focused && blink > 0.10;
+    draw_border(painter, color_1, points.clone(), BORDER_WIDTH);
 
     draw_content(
-        &painter,
-        &frame,
-        &motion,
-        text,
-        muted,
-        label,
+        painter,
+        &inner_rect,
+        color_1,
         value,
-        show_cursor,
-        blink,
-        float_t,
+        label,
+        focused,
+        focus_t,
+        time,
     );
 
-    // ── Glitch / scanlines ───────────────────────────────────────
-    if motion.glitch > 0.01 {
-        draw_glitch(&painter, &frame, &motion);
-        draw_scanlines(&painter, &frame, &motion);
+    // ── Glow (continuous while hovered OR focused) ───────────────
+    let activity = hover.max(focus_t);
+    if activity > 0.001 {
+        let glows = make_glow(&outer_rect, &points, (activity / 0.25) as u8);
+        draw_glow(painter, color_1, &glows);
     }
 
-    if response.hovered() {
+    // ── Glitch + random lines (bursts on hover / click) ──────────
+    if is_animate_hover || is_animate_click {
+        let glitches = make_glitches(&points, GLITCH_DENSE, seed);
+        let lines = make_random_horizontal_lines(&points, 25.0, seed);
+        draw_glitches(painter, color_1, glitches);
+        drow_random_horizontal_lines(painter, color_1, lines, 1.0);
+    }
+
+    // ── Interaction polish ───────────────────────────────────────
+    if response.hovered() || focused {
         ui.ctx().set_cursor_icon(CursorIcon::Text);
     }
-    if focused {
-        // Continuous repaint so the cursor can blink.
-        ui.ctx().request_repaint();
-    }
-    if motion.is_animating() || (0.001..0.999).contains(&focus_t) {
+    if focused
+        || is_animate_hover
+        || is_animate_click
+        || (0.001..0.999).contains(&hover)
+        || (0.001..0.999).contains(&focus_t)
+    {
         ui.ctx().request_repaint();
     }
 
     response
 }
 
-// ─── Frame / Motion ─────────────────────────────────────────────────
-
-#[derive(Clone, Copy)]
-struct Frame {
-    rect: Rect,
-    corner: f32,
-    short: f32,
-}
-
-impl Frame {
-    fn from_outer(outer: Rect) -> Self {
-        let pad = FACE_PAD
-            .min(outer.width() * 0.10)
-            .min(outer.height() * 0.20);
-        let rect = outer.shrink(pad);
-        let short = rect.width().min(rect.height());
-        let corner = CORNER_CUT.min(short * 0.28).max(0.0);
-        Self {
-            rect,
-            corner,
-            short,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct Motion {
-    time: f64,
-    hover: f32,
-    press: f32,
-    glitch: f32,
-}
-
-impl Motion {
-    fn from_ui(ui: &Ui, response: &Response) -> Self {
-        let time = ui.input(|i| i.time);
-        let hover =
-            ui.ctx()
-                .animate_bool_with_time(response.id.with("h"), response.hovered(), HOVER_SECS);
-        let press = ui.ctx().animate_bool_with_time(
-            response.id.with("p"),
-            response.is_pointer_button_down_on(),
-            PRESS_SECS,
-        );
-        let glitch = glitch_intensity(ui, response, time);
-        Self {
-            time,
-            hover,
-            press,
-            glitch,
-        }
-    }
-
-    fn is_animating(&self) -> bool {
-        self.glitch > 0.001
-            || (0.001..0.999).contains(&self.hover)
-            || (0.001..0.999).contains(&self.press)
-    }
-}
-
-// ─── Content — floating label + value + cursor ─────────────────────
-
 #[allow(clippy::too_many_arguments)]
 fn draw_content(
     painter: &Painter,
-    frame: &Frame,
-    motion: &Motion,
-    text: Color32,
-    muted: Color32,
-    label: &str,
+    rect: &Rect,
+    color: Color32,
     value: &str,
-    show_cursor: bool,
-    blink: f32,
-    float_t: f32,
+    label: &str,
+    focused: bool,
+    focus_t: f32,
+    time: f64,
 ) {
-    let body_size = (frame.rect.height() * 0.42).clamp(10.0, 18.0);
-    let small_size = (body_size * 0.72).clamp(8.0, 12.0);
-    let label_size = body_size + (small_size - body_size) * float_t;
-    let label_font = FontId::monospace(label_size);
-    let value_font = FontId::monospace(body_size);
+    let font = FontId::monospace(16.0);
+    let cy = rect.center().y;
+    let x0 = rect.left() + PAD;
 
-    let cy = frame.rect.center().y;
-    let top = frame.rect.top();
-    let h = frame.rect.height();
-    let pad = 12.0;
-    let x = frame.rect.left() + pad;
-
-    // Floated label sits near the top edge; otherwise at vertical center.
-    let floated_y = top + label_size * 0.85;
-    let label_y = cy + (floated_y - cy) * float_t;
-
-    // Value sits in the lower portion of the frame.
-    let value_y = top + h * 0.68;
-
-    // ── Label ────────────────────────────────────────────────────
-    // Brightens slightly as it floats up — reads as "activated".
-    let label_color = lerp(muted, text, 0.35 * float_t);
-
-    let lg = painter.layout_no_wrap(label.to_string(), label_font, label_color);
-    let label_w = lg.size().x;
-    let label_h = lg.size().y;
-    painter.galley(pos2(x, label_y - label_h * 0.5), lg, label_color);
-
-    // Small underline tick beneath the floated label.
-    if float_t > 0.01 {
-        let line_y = label_y + label_size * 0.55;
-        painter.line_segment(
-            [pos2(x, line_y), pos2(x + label_w, line_y)],
-            Stroke::new(1.0, with_alpha(label_color, 90.0 * float_t)),
+    // ── Empty: show label on the left as a hint ─────────────────
+    if value.is_empty() {
+        painter.text(
+            pos2(x0, cy),
+            Align2::LEFT_CENTER,
+            label,
+            font,
+            with_alpha(color, PLACEHOLDER_ALPHA),
         );
-    }
 
-    // ── Value ────────────────────────────────────────────────────
-    let value_color = with_alpha(text, 255.0 * float_t);
-    let value_width = if value.is_empty() {
-        0.0
-    } else {
-        let vg = painter.layout_no_wrap(value.to_string(), value_font.clone(), value_color);
-        let w = vg.size().x;
-        let vh = vg.size().y;
-
-        // Glitch ghosts behind the value
-        if motion.glitch > 0.01 {
-            let aberr = 1.0 + motion.glitch * 3.0;
-            let alpha = 180.0 * motion.glitch * float_t;
-            painter.text(
-                pos2(x - aberr, value_y),
-                Align2::LEFT_CENTER,
-                value,
-                value_font.clone(),
-                with_alpha(RGB_R, alpha),
-            );
-            painter.text(
-                pos2(x + aberr, value_y),
-                Align2::LEFT_CENTER,
-                value,
-                value_font.clone(),
-                with_alpha(GHOST_CYAN, alpha),
-            );
+        // Cursor sits at the very start while empty.
+        if focused {
+            let blink = ((time * 2.0).sin() * 0.5 + 0.5) as f32;
+            if blink > 0.3 {
+                painter.line_segment(
+                    [pos2(x0, cy - 8.0), pos2(x0, cy + 8.0)],
+                    Stroke::new(1.5, color),
+                );
+            }
         }
-
-        painter.galley(pos2(x, value_y - vh * 0.5), vg, value_color);
-        w
-    };
-
-    // ── Cursor ───────────────────────────────────────────────────
-    if show_cursor {
-        let cursor_x = x + value_width + 1.0;
-        let cursor_color = with_alpha(text, 255.0 * blink * float_t);
-        painter.line_segment(
-            [
-                pos2(cursor_x, value_y - body_size * 0.55),
-                pos2(cursor_x, value_y + body_size * 0.55),
-            ],
-            Stroke::new(1.5, cursor_color),
-        );
-    }
-}
-
-// ─── Corner accent ─────────────────────────────────────────────────
-
-fn draw_corner_accent(painter: &Painter, frame: &Frame, color: Color32, t: f32, pulse: f32) {
-    let cut = frame.corner;
-    if cut < 3.0 {
         return;
     }
-    let offset = (frame.short * 0.10).clamp(1.5, 5.0);
-    let inset = (cut * 0.35).max(1.0);
-    let p2 = pos2(frame.rect.right() - cut, frame.rect.top());
-    let p3 = pos2(frame.rect.right(), frame.rect.top() + cut);
-    let k = offset * 0.7071;
-    let p2i = pos2(p2.x - k, p2.y + k);
-    let p3i = pos2(p3.x - k, p3.y + k);
-    let dx = p3i.x - p2i.x;
-    let dy = p3i.y - p2i.y;
-    let len = (dx * dx + dy * dy).sqrt();
-    if len < inset * 2.0 + 1.0 {
-        return;
-    }
-    let ux = dx / len;
-    let uy = dy / len;
-    let a = pos2(p2i.x + ux * inset, p2i.y + uy * inset);
-    let b = pos2(p3i.x - ux * inset, p3i.y - uy * inset);
-    let width = (1.5 + pulse * 1.0) * t;
-    let alpha = (200.0 + 40.0 * pulse) * t;
-    painter.line_segment([a, b], Stroke::new(width, with_alpha(color, alpha)));
-}
 
-// ─── Glitch ─────────────────────────────────────────────────────────
+    // ── Has value: label is gone, just show the text ────────────
+    let alpha = TEXT_ALPHA + (TEXT_ALPHA_FOCUSED - TEXT_ALPHA) * focus_t;
+    let text_color = with_alpha(color, alpha);
 
-fn draw_glitch(painter: &Painter, frame: &Frame, motion: &Motion) {
-    let w = frame.rect.width();
-    let h = frame.rect.height();
-    let h_count = ((w * 0.08) as usize).clamp(2, 12);
-    let p_count = ((w * h) / 500.0) as usize;
+    let vg = painter.layout_no_wrap(value.to_string(), font.clone(), text_color);
+    let value_w = vg.size().x;
+    let value_h = vg.size().y;
+    painter.galley(pos2(x0, cy - value_h * 0.5), vg, text_color);
 
-    for i in 0..h_count {
-        if !flicker(motion, 1.0, 10 + i as u64) {
-            continue;
+    // Cursor after the value.
+    if focused {
+        let blink = ((time * 2.0).sin() * 0.5 + 0.5) as f32;
+        if blink > 0.3 {
+            let cx = x0 + value_w + 1.0;
+            painter.line_segment(
+                [pos2(cx, cy - 8.0), pos2(cx, cy + 8.0)],
+                Stroke::new(1.5, color),
+            );
         }
-        let y = frame.rect.top() + rnd01(motion, 25.0, i) * h;
-        let x1 = frame.rect.left() + rnd01(motion, 30.0, i + 100) * w;
-        let x2 = frame.rect.left() + rnd01(motion, 30.0, i + 200) * w;
-        let (sx, ex) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
-        if ex - sx < 2.0 {
-            continue;
-        }
-        painter.rect_filled(
-            Rect::from_min_size(pos2(sx, y), vec2(ex - sx, 1.0)),
-            0.0,
-            with_alpha(pick_rgb(i), motion.glitch * 180.0),
-        );
     }
-
-    for i in 0..p_count {
-        if !flicker(motion, 0.8, 5000 + i as u64) {
-            continue;
-        }
-        let x = frame.rect.left() + rnd01(motion, 40.0, i + 300) * w;
-        let y = frame.rect.top() + rnd01(motion, 40.0, i + 400) * h;
-        painter.rect_filled(
-            Rect::from_min_size(pos2(x, y), vec2(1.0, 1.0)),
-            0.0,
-            with_alpha(pick_rgb(i), motion.glitch * 180.0),
-        );
-    }
-}
-
-fn draw_scanlines(painter: &Painter, frame: &Frame, motion: &Motion) {
-    let base = (frame.rect.height() / 14.0).clamp(2.0, 6.0);
-    let count = ((base * motion.glitch).ceil() as usize).max(1);
-    let speed = 70.0 + motion.glitch as f64 * 200.0;
-    let step = frame.rect.height() / count as f32;
-    let alpha = (180.0 * motion.glitch).min(255.0);
-    let width = 1.0 + motion.glitch * 1.0;
-
-    for i in 0..count {
-        let base_y = frame.rect.top()
-            + ((motion.time * speed + i as f64 * step as f64) as f32)
-                .rem_euclid(frame.rect.height());
-        let jy = rnd(motion, 60.0, i) * 18.0 * motion.glitch;
-        let jx = rnd(motion, 40.0, i + 10) * 20.0 * motion.glitch;
-        painter.line_segment(
-            [
-                pos2(frame.rect.left() + 4.0 + jx, base_y + jy),
-                pos2(frame.rect.right() - 4.0 + jx, base_y + jy),
-            ],
-            Stroke::new(width, with_alpha(Color32::WHITE, alpha)),
-        );
-    }
-}
-
-fn pick_rgb(i: usize) -> Color32 {
-    match i % 3 {
-        0 => RGB_R,
-        1 => RGB_G,
-        _ => RGB_B,
-    }
-}
-
-// ─── Glitch trigger / intensity ───────────────────────────────────
-
-fn trigger_glitch(ui: &mut Ui, response: &Response) {
-    let t = ui.input(|i| i.time);
-    let key = response.id.with("glitch_at");
-    ui.ctx().data_mut(|d| d.insert_temp(key, t));
-}
-
-fn glitch_intensity(ui: &Ui, response: &Response, time: f64) -> f32 {
-    let key = response.id.with("glitch_at");
-    let last = ui.ctx().data(|d| d.get_temp::<f64>(key)).unwrap_or(-1000.0);
-    let t = ((time - last) / GLITCH_DURATION).clamp(0.0, 1.0) as f32;
-    if t < 1.0 { (1.0 - t).powi(2) } else { 0.0 }
-}
-
-// ─── Paint primitives ──────────────────────────────────────────────
-
-fn draw_face(painter: &Painter, frame: &Frame, fill: Color32) {
-    painter.add(Shape::convex_polygon(
-        cut_polygon(frame.rect, frame.corner),
-        fill,
-        Stroke::NONE,
-    ));
-}
-
-fn draw_frame_tint(painter: &Painter, frame: &Frame, color: Color32, alpha: f32) {
-    painter.add(Shape::convex_polygon(
-        cut_polygon(frame.rect, frame.corner),
-        with_alpha(color, alpha),
-        Stroke::NONE,
-    ));
-}
-
-fn draw_border(painter: &Painter, frame: &Frame, color: Color32, width: f32, alpha: f32) {
-    painter.add(Shape::closed_line(
-        cut_polygon(frame.rect, frame.corner),
-        Stroke::new(width, with_alpha(color, alpha)),
-    ));
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────
-
-fn flicker(motion: &Motion, mult: f32, seed: u64) -> bool {
-    if motion.glitch * mult <= 0.01 {
-        return false;
-    }
-    let n = noise((motion.time * 30.0) as u64, seed as usize) + 0.5;
-    n < motion.glitch * mult * 1.2
-}
-
-fn rnd(motion: &Motion, speed: f64, seed: usize) -> f32 {
-    noise((motion.time * speed) as u64, seed)
-}
-
-fn rnd01(motion: &Motion, speed: f64, seed: usize) -> f32 {
-    rnd(motion, speed, seed) + 0.5
-}
-
-fn cut_polygon(rect: Rect, cut: f32) -> Vec<Pos2> {
-    let cut = cut
-        .min(rect.width() / 2.0)
-        .min(rect.height() / 2.0)
-        .max(0.0);
-    vec![
-        pos2(rect.left() + cut, rect.top()),
-        pos2(rect.right() - cut, rect.top()),
-        pos2(rect.right(), rect.top() + cut),
-        pos2(rect.right(), rect.bottom() - cut),
-        pos2(rect.right() - cut, rect.bottom()),
-        pos2(rect.left() + cut, rect.bottom()),
-        pos2(rect.left(), rect.bottom() - cut),
-        pos2(rect.left(), rect.top() + cut),
-    ]
 }
 
 fn with_alpha(color: Color32, alpha: f32) -> Color32 {
@@ -571,28 +242,5 @@ fn with_alpha(color: Color32, alpha: f32) -> Color32 {
         color.g(),
         color.b(),
         alpha.clamp(0.0, 255.0) as u8,
-    )
-}
-
-fn noise(seed: u64, i: usize) -> f32 {
-    let mut h = seed
-        .wrapping_mul(6364136223846793005)
-        .wrapping_add(1442695040888963407);
-    h ^= i as u64;
-    h = h
-        .wrapping_mul(6364136223846793005)
-        .wrapping_add(1442695040888963407);
-    h = h
-        .wrapping_mul(6364136223846793005)
-        .wrapping_add(1442695040888963407);
-    ((h >> 33) as f32 / (u32::MAX >> 1) as f32) - 0.5
-}
-
-fn lerp(a: Color32, b: Color32, t: f32) -> Color32 {
-    let t = t.clamp(0.0, 1.0);
-    Color32::from_rgb(
-        (a.r() as f32 + (b.r() as f32 - a.r() as f32) * t) as u8,
-        (a.g() as f32 + (b.g() as f32 - a.g() as f32) * t) as u8,
-        (a.b() as f32 + (b.b() as f32 - a.b() as f32) * t) as u8,
     )
 }
