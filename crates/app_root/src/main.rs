@@ -60,7 +60,7 @@ fn fun_secondary_button() -> impl Fn(&mut Ui) {
 
 fn fun_primary_button() -> impl Fn(&mut Ui) {
     |ui| {
-        DefaultSecondaryButton::render(ui, &CyberpunkTheme, "PrimaryButton CyberpunkTheme");
+        DefaultPrimaryButton::render(ui, &CyberpunkTheme, "PrimaryButton CyberpunkTheme");
     }
 }
 

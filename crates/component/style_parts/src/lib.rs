@@ -15,6 +15,7 @@ pub use crate::text::make as make_text;
 use prelude::egui::Align2;
 use prelude::egui::Color32;
 use prelude::egui::FontId;
+use prelude::egui::Id;
 use prelude::egui::Painter;
 use prelude::egui::Pos2;
 use prelude::egui::Rect;
@@ -86,4 +87,36 @@ pub fn fill_shape(painter: &Painter, color: Color32, points: Vec<Pos2>) {
 
 pub fn make_inner_rect(outer_rect: &Rect) -> Rect {
     outer_rect.shrink(8.0)
+}
+
+pub fn is_animation(ui: &Ui, id: Id, duration: f64, is_triger: bool) -> bool {
+    if duration <= 0.0 || !duration.is_finite() {
+        return false;
+    }
+
+    let time = ui.input(|i| i.time);
+
+    // ── Detect the moment `is_triger` goes false → true ────────
+    let was_key = id.with("was");
+    let at_key = id.with("at");
+
+    let was = ui
+        .ctx()
+        .data(|d| d.get_temp::<bool>(was_key).unwrap_or(false));
+
+    let began = is_triger && !was;
+
+    ui.ctx().data_mut(|d| d.insert_temp(was_key, is_triger));
+
+    if began {
+        ui.ctx().data_mut(|d| d.insert_temp(at_key, time));
+    }
+
+    // ── Has `duration` elapsed since the last trigger? ─────────
+    let at = ui
+        .ctx()
+        .data(|d| d.get_temp::<f64>(at_key).unwrap_or(f64::NEG_INFINITY));
+
+    let elapsed = time - at;
+    elapsed >= 0.0 && elapsed < duration
 }

@@ -3,6 +3,7 @@ use component_style_parts::draw_glitches;
 use component_style_parts::draw_glow;
 use component_style_parts::draw_text;
 use component_style_parts::drow_random_horizontal_lines;
+use component_style_parts::is_animation;
 use component_style_parts::make_border;
 use component_style_parts::make_glitches;
 use component_style_parts::make_glow;
@@ -15,7 +16,6 @@ use prelude::egui::Align2;
 use prelude::egui::Color32;
 use prelude::egui::CursorIcon;
 use prelude::egui::FontId;
-use prelude::egui::Id;
 use prelude::egui::Response;
 use prelude::egui::Sense;
 use prelude::egui::Ui;
@@ -34,7 +34,7 @@ impl SecondaryButton for DefaultSecondaryButton {
     }
 }
 
-fn paint(ui: &mut Ui, face_color: Color32, text_color: Color32, label: &str) -> Response {
+fn paint(ui: &mut Ui, color_1: Color32, color_2: Color32, label: &str) -> Response {
     let (outer_rect, response) = ui.allocate_exact_size(ui.available_size(), Sense::click());
     if outer_rect.width() <= 0.0 || outer_rect.height() <= 0.0 {
         return response;
@@ -66,20 +66,20 @@ fn paint(ui: &mut Ui, face_color: Color32, text_color: Color32, label: &str) -> 
     let painter = ui.painter();
 
     let points = make_border(&inner_rect, CORNER);
-    draw_border(painter, face_color, points.clone(), BORDER_WIDTH);
+    draw_border(painter, color_1, points.clone(), BORDER_WIDTH);
 
     painter.text(
         inner_rect.center(),
         Align2::CENTER_CENTER,
         label,
         FontId::monospace(16.0),
-        text_color,
+        color_2,
     );
 
     if response.hovered() {
         let glows = make_glow(&outer_rect, &points, (hover / 0.25) as u8);
 
-        draw_glow(painter, face_color, &glows);
+        draw_glow(painter, color_1, &glows);
     }
     if is_animate_hover {
         let glitches = make_glitches(&points, GLITCH_DENSE, seed);
@@ -88,7 +88,7 @@ fn paint(ui: &mut Ui, face_color: Color32, text_color: Color32, label: &str) -> 
             &points,
             label,
             Align2::CENTER_CENTER,
-            text_color,
+            color_2,
             time.fract() as f32,
             TEXT_DRIFT,
             seed,
@@ -100,8 +100,8 @@ fn paint(ui: &mut Ui, face_color: Color32, text_color: Color32, label: &str) -> 
             texts,
             FontId::monospace(16.0),
         );
-        draw_glitches(painter, face_color, glitches);
-        drow_random_horizontal_lines(painter, face_color, lines, 1.0);
+        draw_glitches(painter, color_1, glitches);
+        drow_random_horizontal_lines(painter, color_1, lines, 1.0);
     }
     if is_animate_click {
         let glitches = make_glitches(&points, GLITCH_DENSE, seed);
@@ -110,7 +110,7 @@ fn paint(ui: &mut Ui, face_color: Color32, text_color: Color32, label: &str) -> 
             &points,
             label,
             Align2::CENTER_CENTER,
-            text_color,
+            color_2,
             time.fract() as f32,
             TEXT_DRIFT,
             seed,
@@ -122,8 +122,8 @@ fn paint(ui: &mut Ui, face_color: Color32, text_color: Color32, label: &str) -> 
             texts,
             FontId::monospace(16.0),
         );
-        draw_glitches(painter, face_color, glitches);
-        drow_random_horizontal_lines(painter, face_color, lines, 1.0);
+        draw_glitches(painter, color_1, glitches);
+        drow_random_horizontal_lines(painter, color_1, lines, 1.0);
     }
 
     if response.hovered() {
@@ -132,36 +132,4 @@ fn paint(ui: &mut Ui, face_color: Color32, text_color: Color32, label: &str) -> 
     ui.request_repaint();
 
     response
-}
-
-fn is_animation(ui: &Ui, id: Id, duration: f64, is_triger: bool) -> bool {
-    if duration <= 0.0 || !duration.is_finite() {
-        return false;
-    }
-
-    let time = ui.input(|i| i.time);
-
-    // ── Detect the moment `is_triger` goes false → true ────────
-    let was_key = id.with("was");
-    let at_key = id.with("at");
-
-    let was = ui
-        .ctx()
-        .data(|d| d.get_temp::<bool>(was_key).unwrap_or(false));
-
-    let began = is_triger && !was;
-
-    ui.ctx().data_mut(|d| d.insert_temp(was_key, is_triger));
-
-    if began {
-        ui.ctx().data_mut(|d| d.insert_temp(at_key, time));
-    }
-
-    // ── Has `duration` elapsed since the last trigger? ─────────
-    let at = ui
-        .ctx()
-        .data(|d| d.get_temp::<f64>(at_key).unwrap_or(f64::NEG_INFINITY));
-
-    let elapsed = time - at;
-    elapsed >= 0.0 && elapsed < duration
 }

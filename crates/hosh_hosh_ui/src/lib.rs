@@ -2,6 +2,7 @@ pub use component_dropdown_button::DefaultDropdownButton;
 pub use component_input_field::DefaultInputField;
 pub use component_input_list::DefaultInputList;
 pub use component_label::DefaultLabel;
+pub use component_primary_button::DefaultPrimaryButton;
 pub use component_secondary_button::DefaultSecondaryButton;
 pub use component_style_parts::render;
 pub use component_toggle_button::DefaultToggleButton;
