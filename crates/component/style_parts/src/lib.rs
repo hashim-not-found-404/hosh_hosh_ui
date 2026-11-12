@@ -10,7 +10,11 @@ pub use crate::random_horizontal_lines::drow as drow_random_horizontal_lines;
 pub use crate::random_horizontal_lines::make as make_random_horizontal_lines;
 pub use crate::scan_line::draw as draw_scan_line;
 pub use crate::scan_line::make as make_scan_line;
+pub use crate::text::draw as draw_text;
+pub use crate::text::make as make_text;
+use prelude::egui::Align2;
 use prelude::egui::Color32;
+use prelude::egui::FontId;
 use prelude::egui::Painter;
 use prelude::egui::Pos2;
 use prelude::egui::Rect;
@@ -26,6 +30,7 @@ mod glow;
 mod grid;
 mod random_horizontal_lines;
 mod scan_line;
+mod text;
 
 pub fn render(ui: &mut Ui) -> Response {
     let (outer_rect, response) = ui.allocate_exact_size(ui.available_size(), Sense::click());
@@ -46,13 +51,29 @@ pub fn render(ui: &mut Ui) -> Response {
     let glows = make_glow(&outer_rect, &points, 4);
     let grid = make_grid(&points, 8.0);
 
-    draw_glow(painter, Color32::GREEN, &glows);
+    draw_glow(painter, Color32::WHITE, &glows);
     draw_border(painter, Color32::WHITE, points.clone(), 1.0);
-    fill_shape(painter, Color32::GREEN, points.clone());
-    draw_glitches(painter, Color32::BLACK, glitches);
-    drow_random_horizontal_lines(painter, Color32::GRAY, lines, 1.0);
-    draw_scan_line(painter, Color32::PURPLE, scan, 1.0);
-    draw_grid(painter, Color32::RED, grid, 1.0);
+    // fill_shape(painter, Color32::WHITE, points.clone());
+    // draw_glitches(painter, Color32::WHITE, glitches);
+    // drow_random_horizontal_lines(painter, Color32::WHITE, lines, 1.0);
+    // draw_scan_line(painter, Color32::PURPLE, scan, 1.0);
+    // draw_grid(painter, Color32::WHITE, grid, 1.0);
+
+    let states = make_text(
+        &points,
+        "ACCOUNT SETTINGS",
+        Align2::CENTER_CENTER,
+        Color32::WHITE,
+        time.fract() as f32,
+        2.5,
+        seed,
+    );
+    draw_text(
+        painter,
+        Align2::CENTER_CENTER,
+        states,
+        FontId::monospace(16.0),
+    );
 
     ui.request_repaint();
 
