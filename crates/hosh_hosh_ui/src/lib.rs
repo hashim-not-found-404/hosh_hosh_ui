@@ -9,6 +9,8 @@ pub use component_style_parts::render;
 pub use component_tertiary_button::DefaultTertiaryButton;
 pub use component_toggle_button::DefaultToggleButton;
 pub use eframe;
+pub use layouts::center::Layout as LayoutCenter;
+pub use layouts::center::make_rects as make_rects_center;
 pub use layouts::flex_and_justify::Layout as LayoutFlexAndJustify;
 pub use layouts::flex_and_justify::make_rects as make_rects_flex_and_justify;
 pub use layouts::grid_flex_and_justify::Layout as LayoutGridFlexAndJustify;

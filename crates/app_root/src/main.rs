@@ -39,7 +39,11 @@ impl App for DemoApp {
                         .child(400.0, fun_primary_button())
                         .child(400.0, fun_tertiary_button()),
                 )
-                .child(LayoutGridFlexAndJustify::new(350.0).child(fun_list()))
+                .child(LayoutCenter::new(
+                    200.0,
+                    200.0,
+                    LayoutGridFlexAndJustify::new(350.0).child(fun_list()),
+                ))
                 .render(ui);
         });
     }
