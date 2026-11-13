@@ -29,18 +29,16 @@ impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
             Horizontal::default()
-                .child(
-                    FlexAndJustify::new()
-                        .child(400.0, fun_label())
-                        .child(80.0, fun_primary_button())
-                        .child(100.0, fun_secondary_button())
-                        .child(250.0, fun_toggle())
-                        // .child(fun_dropdown())
-                        .child(90.0, fun_input())
-                        // .child(fun_input_list())
-                        .child(400.0, fun_primary_button()),
-                )
-                .child(GridFlexAndJustify::new(400.0).child(fun_list()))
+                // .child(
+                //     FlexAndJustify::new()
+                //         .child(400.0, fun_label())
+                //         .child(80.0, fun_primary_button())
+                //         .child(100.0, fun_secondary_button())
+                //         .child(250.0, fun_toggle())
+                //         .child(90.0, fun_input())
+                //         .child(400.0, fun_primary_button()),
+                // )
+                .child(GridFlexAndJustify::new(350.0).child(fun_list()))
                 .render(ui);
         });
     }
@@ -135,16 +133,21 @@ fn fun_list() -> impl Fn(&mut Ui) {
         let id = Id::unique("demo-list");
         let mut selected = ui.ctx().data(|d| d.get_temp::<usize>(id).unwrap_or(0));
 
-        let weights = [2.0, 1.0, 1.0];
+        let weights = [1.5, 1.5, 1.0];
         let rows: &[[&str; 3]] = &[
             ["Debit", "100.00", "USD"],
             ["Credit", "50.00", "USD"],
             ["Refund", "12.50", "USD"],
         ];
 
-        if DefaultList::render(ui, &CyberpunkTheme, weights, rows, &mut selected).changed() {
+        // The list does not know what layout exists. We tell it.
+        let avail = ui.available_rect_before_wrap();
+        let rects = rows_flex(avail, &[50.0, 71.0, 990.0]);
+
+        if DefaultList::render(ui, &CyberpunkTheme, &rects, weights, rows, &mut selected).changed()
+        {
             ui.ctx().data_mut(|d| d.insert_temp(id, selected));
-            println!("{selected}")
+            println!("{selected}");
         }
     }
 }
@@ -160,18 +163,12 @@ pub struct CyberpunkTheme;
 impl Theme for CyberpunkTheme {
     // ── Accents ─────────────────────────────────────────────────────
     fn brand(&self) -> Color32 {
-        // Steel blue — the one cold accent. Muted, crystalline.
         Color32::from_rgb(110, 175, 210)
     }
     fn on_brand(&self) -> Color32 {
-        // Cool charcoal — the secondary's ghost face.
-        // Just barely lighter than `background`, so it reads as depth
-        // not as a filled shape.
         Color32::from_rgb(22, 26, 34)
     }
     fn brand_alt(&self) -> Color32 {
-        // Warm copper — the complementary warm accent.
-        // Blue + copper is the classic cinematic pairing.
         Color32::from_rgb(200, 155, 100)
     }
     fn danger(&self) -> Color32 {
@@ -181,7 +178,7 @@ impl Theme for CyberpunkTheme {
         Color32::from_rgb(125, 190, 145)
     }
 
-    // ── Surfaces — cool-tinted, near-black ──────────────────────────
+    // ── Surfaces ────────────────────────────────────────────────────
     fn background(&self) -> Color32 {
         Color32::from_rgb(14, 16, 22)
     }
@@ -194,7 +191,6 @@ impl Theme for CyberpunkTheme {
 
     // ── Foreground ──────────────────────────────────────────────────
     fn text(&self) -> Color32 {
-        // Cool off-white — never pure white on dark.
         Color32::from_rgb(220, 226, 234)
     }
     fn text_muted(&self) -> Color32 {

@@ -1,4 +1,5 @@
 use egui::Color32;
+use egui::Rect;
 use egui::Response;
 use egui::Ui;
 
@@ -159,10 +160,11 @@ pub trait Label: Send + Sync + 'static {
     fn render(ui: &mut Ui, theme: &dyn Theme, text: &str) -> Response;
 }
 
-pub trait List {
+pub trait List: Send + Sync + 'static {
     fn render<const N: usize>(
         ui: &mut Ui,
         theme: &dyn Theme,
+        rects: &[Rect],
         weights: [f32; N],
         labels: &[[&str; N]],
         selected: &mut usize,
