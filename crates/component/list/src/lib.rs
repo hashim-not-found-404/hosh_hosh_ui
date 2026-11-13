@@ -1,6 +1,7 @@
 use component_style_parts::draw_border;
 use component_style_parts::draw_glitches;
 use component_style_parts::draw_glow;
+use component_style_parts::draw_text;
 use component_style_parts::drow_random_horizontal_lines;
 use component_style_parts::fill_shape;
 use component_style_parts::is_animation;
@@ -9,6 +10,7 @@ use component_style_parts::make_glitches;
 use component_style_parts::make_glow;
 use component_style_parts::make_inner_rect;
 use component_style_parts::make_random_horizontal_lines;
+use component_style_parts::make_text;
 use prelude::List;
 use prelude::Theme;
 use prelude::egui::Align;
@@ -31,6 +33,14 @@ const CORNER: f32 = 8.0;
 const BORDER_WIDTH: f32 = 1.0;
 const HOVER_SECS: f32 = 0.20;
 const GLITCH_DENSE: f32 = 400.0;
+/// Same drift the primary button uses — keeps the ghost spread
+/// consistent across widgets.
+const TEXT_DRIFT: f32 = 2.5;
+/// `make_text` adds this to the shape's bbox left edge to anchor
+/// `Align2::LEFT_CENTER`. Must match `component_style_parts::text::PAD`.
+/// We build per-cell shapes offset by `-TEXT_PAD` so the rendered text
+/// sits exactly at `x`, i.e. at `CELL_PAD` from the cell edge.
+const TEXT_PAD: f32 = 8.0;
 
 pub struct DefaultList;
 
@@ -107,9 +117,6 @@ pub fn paint<const N: usize>(
     response
 }
 
-/// One row: chrome (border / glow / glitch / random lines) plus the
-/// weighted cells. Inlined here so the crate doesn't need a separate
-/// `container_button` dependency.
 fn paint_row<const N: usize>(
     ui: &mut Ui,
     color_1: Color32,
@@ -130,34 +137,50 @@ fn paint_row<const N: usize>(
             .animate_bool_with_time(response.id.with("h"), response.hovered(), HOVER_SECS);
     let is_animate_hover = is_animation(ui, response.id.with("ah"), 0.16, response.hovered());
     let is_animate_click = is_animation(ui, response.id.with("ac"), 0.16, response.clicked());
+    let animate = is_animate_hover || is_animate_click;
 
     let inner_rect = make_inner_rect(&outer_rect);
     let points = make_border(&inner_rect, CORNER);
     let painter = ui.painter();
 
-    if hover > 0.001 {
+    // ── Face + border + glow on hover ──────────────────────────
+    let text_color = if hover > 0.001 {
         fill_shape(painter, color_1, points.clone());
         draw_border(painter, color_1, points.clone(), BORDER_WIDTH);
 
         let glows = make_glow(&outer_rect, &points, (hover / 0.25) as u8);
         draw_glow(painter, color_1, &glows);
 
-        draw_cells(painter, inner_rect, color_2, weights, labels);
+        color_2
     } else {
-        draw_cells(painter, inner_rect, color_1, weights, labels);
-    }
+        color_1
+    };
 
-    if is_animate_hover || is_animate_click {
+    // ── Cells — plain text, or animated ghosts during the burst ─
+    draw_cells(
+        painter,
+        inner_rect,
+        text_color,
+        weights,
+        labels,
+        time.fract() as f32,
+        TEXT_DRIFT,
+        seed,
+        animate,
+    );
+
+    // ── Glitch + random lines during the burst ──────────────────
+    if animate {
         let glitches = make_glitches(&points, GLITCH_DENSE, seed);
         let lines = make_random_horizontal_lines(&points, 25.0, seed);
-        draw_glitches(painter, color_2, glitches);
-        drow_random_horizontal_lines(painter, color_2, lines, 1.0);
+        draw_glitches(painter, text_color, glitches);
+        drow_random_horizontal_lines(painter, text_color, lines, 1.0);
     }
 
     if response.hovered() {
         ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
     }
-    if response.hovered() || is_animate_hover || is_animate_click {
+    if response.hovered() || animate {
         ui.ctx().request_repaint();
     }
 
@@ -170,6 +193,10 @@ fn draw_cells<const N: usize>(
     color: Color32,
     weights: [f32; N],
     labels: &[&str; N],
+    progress: f32,
+    drift_width: f32,
+    seed: u64,
+    animate: bool,
 ) {
     let mut total: f32 = 0.0;
     for &w in weights.iter() {
@@ -191,7 +218,38 @@ fn draw_cells<const N: usize>(
             continue;
         }
         let col_w = rect.width() * weight / total;
-        painter.text(pos2(x, cy), Align2::LEFT_CENTER, label, font.clone(), color);
+
+        if animate {
+            // `make_text` anchors `LEFT_CENTER` at `shape.bbox.left() + PAD`.
+            // We want the anchor at `x`, so build a thin quad whose left
+            // edge is `x - TEXT_PAD`. The y-extent covers the whole cell
+            // so `CENTER` on the y-axis lands at `cy`.
+            let left = x - TEXT_PAD;
+            let shape = vec![
+                pos2(left, rect.top() + 1.0),
+                pos2(left + 1.0, rect.top() + 1.0),
+                pos2(left + 1.0, rect.bottom() - 1.0),
+                pos2(left, rect.bottom() - 1.0),
+            ];
+
+            // Distinct seed per cell → each cell's ghosts drift
+            // independently, but deterministically per frame.
+            let cell_seed = seed ^ ((i as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+
+            let bundle = make_text(
+                &shape,
+                label,
+                Align2::LEFT_CENTER,
+                color,
+                progress,
+                drift_width,
+                cell_seed,
+            );
+            draw_text(painter, Align2::LEFT_CENTER, bundle, font.clone());
+        } else {
+            painter.text(pos2(x, cy), Align2::LEFT_CENTER, label, font.clone(), color);
+        }
+
         x += col_w;
     }
 }
