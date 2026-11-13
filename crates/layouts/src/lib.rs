@@ -62,37 +62,7 @@ pub fn rows_horizontal(avail: Rect, n: usize) -> Vec<Rect> {
         .collect()
 }
 
-// pub fn rows_grid(avail: Rect, n: usize, min_width: f32) -> Vec<Rect> {
-//     if n == 0 {
-//         return Vec::new();
-//     }
-//     let min_width = min_width.max(1.0);
-//
-//     let columns = (avail.width() / min_width) as usize;
-//     let rows = (n as f32 / columns as f32).ceil() as usize;
-//
-//     let h_for_element = avail.height() / rows as f32;
-//     let w_for_element = avail.width() / columns as f32;
-//
-//     let mut rects = Vec::with_capacity(n);
-//
-//     for row in 0..rows {
-//         for column in 0..columns {
-//             let left = column as f32 * w_for_element;
-//             let top = row as f32 * h_for_element;
-//
-//             let rect = Rect::from_min_size(
-//                 pos2(avail.left() + left, avail.top() + top),
-//                 vec2(w_for_element, h_for_element),
-//             );
-//
-//             rects.push(rect);
-//         }
-//     }
-//
-//     rects
-// }
-
+/// Row-major grid, columns at least `min_width` wide.
 pub fn rows_grid(avail: Rect, n: usize, min_width: f32) -> Vec<Rect> {
     if n == 0 || avail.width() <= 0.0 || avail.height() <= 0.0 {
         return Vec::new();
@@ -189,10 +159,6 @@ pub fn rows_flex(avail: Rect, mins: &[f32]) -> Vec<Rect> {
 //   1. computes rects via its `rows_*` helper,
 //   2. claims the union of those rects (advances the parent cursor),
 //   3. renders each child into its rect via `scope_builder`.
-//
-// No layout-specific math lives here anymore. Fix `rows_flex` once,
-// `FlexAndJustify` gets the fix. Fix `rows_grid` once,
-// `GridFlexAndJustify` gets it too.
 
 /// Render `children[i]` into `rects[i]`, top-down-centered inside each
 /// rect. The union of the rects is claimed on the parent so the cursor
@@ -321,29 +287,24 @@ impl Node for GridFlexAndJustify {
 ///
 /// A child whose `min_width` exceeds the available width still
 /// renders — clamped to the available width so it doesn't overflow.
+///
+/// `children` and `mins` are **parallel vectors**: `children[i]` is
+/// the node for `mins[i]`. The invariant `children.len() == mins.len()`
+/// is upheld by `child()` being the only way to grow either.
+#[derive(Default)]
 pub struct FlexAndJustify {
-    children: Vec<(f32, Box<dyn Node>)>,
+    children: Vec<Box<dyn Node>>,
+    mins: Vec<f32>,
 }
 
 impl FlexAndJustify {
-    pub fn new() -> Self {
-        Self {
-            children: Vec::new(),
-        }
-    }
-
     /// Add a child with a minimum width in pixels. The child grows to
     /// share the row's leftover width, but never shrinks below
     /// `min_width`.
     pub fn child(mut self, min_width: f32, c: impl Node) -> Self {
-        self.children.push((min_width.max(0.0), Box::new(c)));
+        self.children.push(Box::new(c));
+        self.mins.push(min_width.max(0.0));
         self
-    }
-}
-
-impl Default for FlexAndJustify {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -352,36 +313,8 @@ impl Node for FlexAndJustify {
         if self.children.is_empty() {
             return;
         }
-        let mins: Vec<f32> = self.children.iter().map(|(m, _)| *m).collect();
         let avail = ui.available_rect_before_wrap();
-        let rects = rows_flex(avail, &mins);
-
-        // `render_into_rects` expects `&[Box<dyn Node>]`; strip the
-        // mins here so the shared helper applies uniformly.
-        let nodes: Vec<Box<dyn Node>> = self
-            .children
-            .iter()
-            .map(|(_, n)| {
-                // We can't move out of `&self`, so box a thin wrapper
-                // that delegates. Cheap — one Box per child per frame
-                // is fine at these sizes (and the allocations are
-                // dwarfed by the paint work).
-                Box::new(DelegatingNode(n.as_ref() as *const dyn Node)) as Box<dyn Node>
-            })
-            .collect();
-        render_into_rects(ui, &rects, &nodes);
-    }
-}
-
-/// Wrapper that lets `render_into_rects` take `&[Box<dyn Node>]` even
-/// when the source of truth is `&[(f32, Box<dyn Node>)]`. The raw
-/// pointer is safe here because the wrapper never outlives the borrow.
-struct DelegatingNode(*const dyn Node);
-
-impl Node for DelegatingNode {
-    fn render(&self, ui: &mut Ui) {
-        // SAFETY: `self.0` points into `FlexAndJustify::children`, which
-        // outlives `self` for the duration of `render_into_rects`.
-        unsafe { (*self.0).render(ui) }
+        let rects = rows_flex(avail, &self.mins);
+        render_into_rects(ui, &rects, &self.children);
     }
 }
