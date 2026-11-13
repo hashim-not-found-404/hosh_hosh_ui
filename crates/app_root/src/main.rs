@@ -29,15 +29,16 @@ impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
             Horizontal::default()
-                // .child(
-                //     FlexAndJustify::new()
-                //         .child(400.0, fun_label())
-                //         .child(80.0, fun_primary_button())
-                //         .child(100.0, fun_secondary_button())
-                //         .child(250.0, fun_toggle())
-                //         .child(90.0, fun_input())
-                //         .child(400.0, fun_primary_button()),
-                // )
+                .child(
+                    FlexAndJustify::default()
+                        .child(400.0, fun_label())
+                        .child(80.0, fun_primary_button())
+                        .child(100.0, fun_secondary_button())
+                        .child(250.0, fun_toggle())
+                        .child(90.0, fun_input())
+                        .child(400.0, fun_primary_button())
+                        .child(400.0, fun_tertiary_button()),
+                )
                 .child(GridFlexAndJustify::new(350.0).child(fun_list()))
                 .render(ui);
         });
@@ -152,9 +153,9 @@ fn fun_list() -> impl Fn(&mut Ui) {
     }
 }
 
-fn fun_name(a: &'static str) -> impl Fn(&mut Ui) {
-    move |ui| {
-        DefaultLabel::render(ui, &CyberpunkTheme, a);
+fn fun_tertiary_button() -> impl Fn(&mut Ui) {
+    |ui| {
+        DefaultTertiaryButton::render(ui, &CyberpunkTheme, "TertiaryButton");
     }
 }
 

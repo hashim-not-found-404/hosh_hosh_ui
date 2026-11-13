@@ -7,5 +7,6 @@ pub use interfaces::Label;
 pub use interfaces::List;
 pub use interfaces::PrimaryButton;
 pub use interfaces::SecondaryButton;
+pub use interfaces::TertiaryButton;
 pub use interfaces::Theme;
 pub use interfaces::ToggleButton;

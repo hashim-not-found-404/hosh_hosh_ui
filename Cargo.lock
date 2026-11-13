@@ -699,6 +699,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "component_tertiary_button"
+version = "0.1.0"
+dependencies = [
+ "component_style_parts",
+ "prelude",
+]
+
+[[package]]
 name = "component_toggle_button"
 version = "0.1.0"
 dependencies = [
@@ -1528,6 +1536,7 @@ dependencies = [
  "component_primary_button",
  "component_secondary_button",
  "component_style_parts",
+ "component_tertiary_button",
  "component_toggle_button",
  "eframe",
  "layouts",
