@@ -102,12 +102,12 @@ impl Node for Vertical {
 /// wraps to a new row. Every cell in a row gets the same width, and
 /// every row gets the same height — the same even-division behaviour
 /// as `Horizontal` and `Vertical`.
-pub struct GridFlex {
+pub struct GridFlexAndJustify {
     children: Vec<Box<dyn Node>>,
     min_width: f32,
 }
 
-impl GridFlex {
+impl GridFlexAndJustify {
     /// `min_width` is the smallest a single cell can be (px). A 400 px
     /// grid with `min_width = 100.0` fits 4 columns; the same grid at
     /// 300 px fits 3. Values below 1.0 are clamped so the divisor
@@ -125,7 +125,7 @@ impl GridFlex {
     }
 }
 
-impl Node for GridFlex {
+impl Node for GridFlexAndJustify {
     fn render(&self, ui: &mut Ui) {
         let n = self.children.len();
         if n == 0 {

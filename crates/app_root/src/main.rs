@@ -28,7 +28,7 @@ struct DemoApp;
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
-            GridFlex::new(300.0)
+            GridFlexAndJustify::new(300.0)
                 .child(fun_label())
                 .child(fun_primary_button())
                 .child(fun_secondary_button())
