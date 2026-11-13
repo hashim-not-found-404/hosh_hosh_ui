@@ -28,14 +28,26 @@ struct DemoApp;
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
-            GridFlexAndJustify::new(300.0)
-                .child(fun_label())
-                .child(fun_primary_button())
-                .child(fun_secondary_button())
-                .child(fun_toggle())
-                // .child(fun_dropdown())
-                .child(fun_input())
-                // .child(fun_input_list())
+            Horizontal::default()
+                .child(
+                    GridFlexAndJustify::new(300.0)
+                        .child(fun_label())
+                        .child(fun_primary_button())
+                        .child(fun_secondary_button())
+                        .child(fun_toggle())
+                        // .child(fun_dropdown())
+                        .child(fun_input())
+                        // .child(fun_input_list())
+                        .child_with_min_width(400.0, fun_primary_button()),
+                )
+                .child(
+                    GridFlexAndJustify::new(0.0)
+                        .child_with_min_width(100.0, fun_primary_button())
+                        .child_with_min_width(10.0, fun_primary_button())
+                        .child_with_min_width(120.0, fun_primary_button())
+                        .child_with_min_width(50.0, fun_primary_button())
+                        .child_with_min_width(80.0, fun_primary_button()),
+                )
                 .render(ui);
         });
     }

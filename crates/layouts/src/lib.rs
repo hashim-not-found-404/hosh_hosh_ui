@@ -123,6 +123,12 @@ impl GridFlexAndJustify {
         self.children.push(Box::new(c));
         self
     }
+
+    pub fn child_with_min_width(mut self, min_width: f32, c: impl Node) -> Self {
+        self.min_width = self.min_width.max(min_width);
+        self.children.push(Box::new(c));
+        self
+    }
 }
 
 impl Node for GridFlexAndJustify {
