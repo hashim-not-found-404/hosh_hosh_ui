@@ -1,0 +1,8 @@
+[package]
+edition = "2024"
+name = "component_list"
+version = "0.1.0"
+
+[dependencies]
+component_style_parts.workspace = true
+prelude.workspace = true

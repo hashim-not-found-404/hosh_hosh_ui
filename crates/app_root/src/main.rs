@@ -40,14 +40,7 @@ impl App for DemoApp {
                         // .child(fun_input_list())
                         .child_with_min_width(400.0, fun_primary_button()),
                 )
-                .child(
-                    GridFlexAndJustify::new(0.0)
-                        .child_with_min_width(100.0, fun_primary_button())
-                        .child_with_min_width(10.0, fun_primary_button())
-                        .child_with_min_width(120.0, fun_primary_button())
-                        .child_with_min_width(50.0, fun_primary_button())
-                        .child_with_min_width(80.0, fun_primary_button()),
-                )
+                .child(GridFlexAndJustify::new(400.0).child(fun_list()))
                 .render(ui);
         });
     }
@@ -134,6 +127,31 @@ fn fun_label() -> impl Fn(&mut Ui) {
 fn fun_preview() -> impl Fn(&mut Ui) {
     |ui| {
         render(ui);
+    }
+}
+
+fn fun_list() -> impl Fn(&mut Ui) {
+    |ui| {
+        let id = Id::unique("demo-list");
+        let mut selected = ui.ctx().data(|d| d.get_temp::<usize>(id).unwrap_or(0));
+
+        let weights = [2.0, 1.0, 1.0];
+        let rows: &[[&str; 3]] = &[
+            ["Debit", "100.00", "USD"],
+            ["Credit", "50.00", "USD"],
+            ["Refund", "12.50", "USD"],
+        ];
+
+        if DefaultList::render(ui, &CyberpunkTheme, weights, rows, &mut selected).changed() {
+            ui.ctx().data_mut(|d| d.insert_temp(id, selected));
+            println!("{selected}")
+        }
+    }
+}
+
+fn fun_name(a: &'static str) -> impl Fn(&mut Ui) {
+    move |ui| {
+        DefaultLabel::render(ui, &CyberpunkTheme, a);
     }
 }
 
