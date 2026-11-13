@@ -30,15 +30,15 @@ impl App for DemoApp {
         CentralPanel::default().show(ui, |ui| {
             Horizontal::default()
                 .child(
-                    GridFlexAndJustify::new(300.0)
-                        .child(fun_label())
-                        .child(fun_primary_button())
-                        .child(fun_secondary_button())
-                        .child(fun_toggle())
+                    FlexAndJustify::new()
+                        .child(400.0, fun_label())
+                        .child(80.0, fun_primary_button())
+                        .child(100.0, fun_secondary_button())
+                        .child(250.0, fun_toggle())
                         // .child(fun_dropdown())
-                        .child(fun_input())
+                        .child(90.0, fun_input())
                         // .child(fun_input_list())
-                        .child_with_min_width(400.0, fun_primary_button()),
+                        .child(400.0, fun_primary_button()),
                 )
                 .child(GridFlexAndJustify::new(400.0).child(fun_list()))
                 .render(ui);

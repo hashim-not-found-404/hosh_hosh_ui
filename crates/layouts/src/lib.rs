@@ -179,3 +179,135 @@ impl Node for GridFlexAndJustify {
         });
     }
 }
+
+/// Wrap-flex layout. Children carry a minimum width; the layout
+/// places them left-to-right and wraps to the next row when the next
+/// child would overflow.
+///
+/// Within each row, leftover width is shared equally:
+///
+/// ```text
+/// avail = 500, gap = 0, children mins = [100, 100, 100]
+/// row 1: 3 children, extra 200 → each ≈ 166.7
+///
+/// avail = 500, gap = 10, children mins = [200, 200, 200]
+/// row 1: 2 children (200 + 10 + 200 = 410 ≤ 500)  → each gets (500−410)/2 + 200 = 245
+/// row 2: 1 child                                    → gets 500
+/// ```
+///
+/// A child whose `min_width` exceeds the available width still
+/// renders — clamped to the available width so it doesn't overflow.
+pub struct FlexAndJustify {
+    children: Vec<(f32, Box<dyn Node>)>,
+}
+
+impl FlexAndJustify {
+    pub fn new() -> Self {
+        Self {
+            children: Vec::new(),
+        }
+    }
+
+    /// Add a child with a minimum width in pixels. The child will
+    /// grow to share the row's leftover width, but never shrink
+    /// below `min_width`.
+    pub fn child(mut self, min_width: f32, c: impl Node) -> Self {
+        self.children.push((min_width.max(0.0), Box::new(c)));
+        self
+    }
+}
+
+impl Default for FlexAndJustify {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Node for FlexAndJustify {
+    fn render(&self, ui: &mut Ui) {
+        let n = self.children.len();
+        if n == 0 {
+            return;
+        }
+
+        let w = ui.available_width();
+        let h = ui.available_height();
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+
+        // ── Greedy wrap ────────────────────────────────────────
+        // Each row is a set of child indices. A child starts a new
+        // row if adding it would exceed `w` — unless it's the only
+        // child in the row (in which case we let it overflow into
+        // the row, then clamp its width at render time).
+        let mut rows: Vec<Vec<usize>> = Vec::new();
+        let mut current: Vec<usize> = Vec::new();
+        let mut used: f32 = 0.0;
+
+        for (i, (min_w, _)) in self.children.iter().enumerate() {
+            let needed = if current.is_empty() {
+                *min_w
+            } else {
+                used + *min_w
+            };
+
+            if !current.is_empty() && needed > w {
+                rows.push(std::mem::take(&mut current));
+                current.push(i);
+                used = *min_w;
+            } else {
+                current.push(i);
+                used = needed;
+            }
+        }
+        if !current.is_empty() {
+            rows.push(current);
+        }
+
+        // ── Per-child widths ──────────────────────────────────
+        // Each row uses its full `w`. Extra = w - (sum_min + gaps).
+        // Split the extra equally among the row's children; clamp
+        // every width to `w` so a single oversized child doesn't
+        // overflow the row.
+        let mut widths = vec![0.0_f32; n];
+        for row in &rows {
+            let mins: f32 = row.iter().map(|&i| self.children[i].0).sum();
+            let gaps = if row.len() > 1 {
+                (row.len() - 1) as f32
+            } else {
+                0.0
+            };
+            let extra = (w - mins - gaps).max(0.0);
+            let per_child = extra / row.len() as f32;
+            for &i in row {
+                widths[i] = (self.children[i].0 + per_child).min(w);
+            }
+        }
+
+        // ── Render ─────────────────────────────────────────────
+        let row_h = h / rows.len() as f32;
+
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing.y = 0.0;
+
+            for row in &rows {
+                ui.allocate_ui_with_layout(
+                    vec2(w, row_h),
+                    Layout::left_to_right(Align::Min),
+                    |ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+
+                        for &i in row {
+                            ui.allocate_ui_with_layout(
+                                vec2(widths[i], row_h),
+                                Layout::top_down(Align::Min),
+                                |ui| self.children[i].1.render(ui),
+                            );
+                        }
+                    },
+                );
+            }
+        });
+    }
+}
