@@ -26,15 +26,6 @@ interfaces.path = "./crates/interfaces"
 layouts.path = "./crates/layouts"
 prelude.path = "./crates/prelude"
 
-# external in the domain
-anyhow = "1.0.104"
-dyn-clone = "1.0.20"
-heck = "0.5.0"
-paste = "1.0.15"
-proc-macro2 = "1.0.107"
-quote = "1.0.47"
-syn = "3.0.9"
-
 # external out the domain
 eframe = "0.37.0"
 egui = "0.37.0"
