@@ -28,9 +28,9 @@ struct DemoApp;
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
-            Horizontal::default()
+            LayoutHorizontal::default()
                 .child(
-                    FlexAndJustify::default()
+                    LayoutFlexAndJustify::default()
                         .child(400.0, fun_label())
                         .child(80.0, fun_primary_button())
                         .child(100.0, fun_secondary_button())
@@ -39,7 +39,7 @@ impl App for DemoApp {
                         .child(400.0, fun_primary_button())
                         .child(400.0, fun_tertiary_button()),
                 )
-                .child(GridFlexAndJustify::new(350.0).child(fun_list()))
+                .child(LayoutGridFlexAndJustify::new(350.0).child(fun_list()))
                 .render(ui);
         });
     }
@@ -143,7 +143,7 @@ fn fun_list() -> impl Fn(&mut Ui) {
 
         // The list does not know what layout exists. We tell it.
         let avail = ui.available_rect_before_wrap();
-        let rects = rows_flex(avail, &[50.0, 71.0, 990.0]);
+        let rects = make_rects_flex_and_justify(avail, &[50.0, 71.0, 990.0]);
 
         if DefaultList::render(ui, &CyberpunkTheme, &rects, weights, rows, &mut selected).changed()
         {
