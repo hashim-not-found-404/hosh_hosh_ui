@@ -21,6 +21,8 @@ pub use layouts::utils::Node;
 pub use layouts::utils::render_into_rects;
 pub use layouts::vertical::Layout as LayoutVertical;
 pub use layouts::vertical::make_rects as make_rects_vertical;
+pub use layouts::vertical_sized_and_clip::Layout as LayoutVerticalSizedAndClip;
+pub use layouts::vertical_sized_and_clip::make_rects as make_rects_vertical_sized_and_clip;
 pub use prelude::DefaultTheme;
 pub use prelude::DropdownButton;
 pub use prelude::InputField;

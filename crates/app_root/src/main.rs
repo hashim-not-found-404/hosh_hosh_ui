@@ -28,16 +28,16 @@ struct DemoApp;
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
         CentralPanel::default().show(ui, |ui| {
-            LayoutHorizontal::default()
+            LayoutVertical::default()
                 .child(
-                    LayoutFlexAndJustify::default()
-                        .child(400.0, fun_label())
-                        .child(80.0, fun_primary_button())
-                        .child(100.0, fun_secondary_button())
-                        .child(250.0, fun_toggle())
-                        .child(90.0, fun_input())
-                        .child(400.0, fun_primary_button())
-                        .child(400.0, fun_tertiary_button()),
+                    LayoutVerticalSizedAndClip::default()
+                        .child(48.0, fun_label())
+                        .child(48.0, fun_primary_button())
+                        .child(48.0, fun_secondary_button())
+                        .child(48.0, fun_toggle())
+                        .child(48.0, fun_input())
+                        .child(100.0, fun_primary_button())
+                        .child(200.0, fun_tertiary_button()),
                 )
                 .child(LayoutCenter::new(
                     200.0,

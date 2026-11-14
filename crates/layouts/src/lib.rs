@@ -4,3 +4,4 @@ pub mod grid_flex_and_justify;
 pub mod horizontal;
 pub mod utils;
 pub mod vertical;
+pub mod vertical_sized_and_clip;
