@@ -23,7 +23,6 @@ use prelude::egui::Sense;
 use prelude::egui::Stroke;
 use prelude::egui::Ui;
 use prelude::egui::pos2;
-use prelude::update;
 
 const CORNER: f32 = 8.0;
 const BORDER_WIDTH: f32 = 1.0;
@@ -114,7 +113,7 @@ pub fn paint(ui: &mut Ui, color_1: Color32, value: &mut String, label: &str) -> 
         }
 
         // Feed keyboard / text / paste events through the editor.
-        update(ui, &mut state);
+        state.update(ui);
 
         // Sync back to the caller's string if it changed.
         if state.get_text().as_str() != value.as_str() {

@@ -2,6 +2,7 @@ use egui::Event;
 use egui::Key;
 use egui::Modifiers;
 use egui::Ui;
+use std::mem::take;
 use std::ops::Range;
 
 /// Snapshot of editable state used for undo / redo.
@@ -30,6 +31,25 @@ pub struct State {
 }
 
 impl State {
+    /// Feed keyboard events from `ui` into `state`.
+    ///
+    /// Handles: typing, paste, **copy**, **cut**, arrows, home/end,
+    /// backspace/delete (with word variants), Ctrl+A, **Ctrl+Z**,
+    /// **Ctrl+Y / Ctrl+Shift+Z**. Copy / cut results are written to the
+    /// system clipboard via `ui.ctx().copy_text(...)`.
+    ///
+    /// `Enter`, `Escape`, and unknown keys stay in `ui.input().events`.
+    pub fn update(&mut self, ui: &mut Ui) {
+        let mut clipboard: Option<String> = None;
+        ui.input_mut(|i| {
+            i.events
+                .retain(|event| !process(self, event, &mut clipboard));
+        });
+        if let Some(text) = clipboard {
+            ui.ctx().copy_text(text);
+        }
+    }
+
     // ── Read ──────────────────────────────────────────────────────
 
     pub fn get_text(&self) -> &String {
@@ -111,7 +131,7 @@ impl State {
             return false;
         };
         self.redo.push(Snapshot {
-            text: std::mem::take(&mut self.text),
+            text: take(&mut self.text),
             cursor: self.cursor,
             anchor: self.anchor,
         });
@@ -126,7 +146,7 @@ impl State {
             return false;
         };
         self.undo.push(Snapshot {
-            text: std::mem::take(&mut self.text),
+            text: take(&mut self.text),
             cursor: self.cursor,
             anchor: self.anchor,
         });
@@ -298,25 +318,6 @@ impl From<String> for State {
 impl From<&str> for State {
     fn from(s: &str) -> Self {
         Self::from(s.to_string())
-    }
-}
-
-/// Feed keyboard events from `ui` into `state`.
-///
-/// Handles: typing, paste, **copy**, **cut**, arrows, home/end,
-/// backspace/delete (with word variants), Ctrl+A, **Ctrl+Z**,
-/// **Ctrl+Y / Ctrl+Shift+Z**. Copy / cut results are written to the
-/// system clipboard via `ui.ctx().copy_text(...)`.
-///
-/// `Enter`, `Escape`, and unknown keys stay in `ui.input().events`.
-pub fn update(ui: &mut Ui, state: &mut State) {
-    let mut clipboard: Option<String> = None;
-    ui.input_mut(|i| {
-        i.events
-            .retain(|event| !process(state, event, &mut clipboard));
-    });
-    if let Some(text) = clipboard {
-        ui.ctx().copy_text(text);
     }
 }
 
