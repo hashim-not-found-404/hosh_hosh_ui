@@ -5,26 +5,25 @@ use egui::Ui;
 use std::ops::Range;
 
 /// Plain data describing the editable text and where the cursor /
-/// selection is. All fields are public — the caller manipulates them
-/// directly when they need to (e.g. resyncing from an external source).
+/// selection is. All mutation goes through [`update`] or the small
+/// set of public methods below — the raw fields are kept private so
+/// nothing outside this crate can put the editor in an inconsistent
+/// state (e.g. cursor mid-UTF-8-codepoint).
 ///
 /// Byte positions are tracked (not chars) so mutation is O(1) and
 /// UTF-8 is always valid. For painting, use the two char-space
-/// helpers below.
+/// helpers [`cursor_char`][State::cursor_char] /
+/// [`selection_char_range`][State::selection_char_range].
 #[derive(Debug, Clone, Default)]
 pub struct State {
-    /// Current text.
     text: String,
-    /// Cursor position as a **byte index** into `text`. Always on a
-    /// UTF-8 char boundary.
     cursor: usize,
-    /// Selection anchor as a byte index. `Some(a)` with `a != cursor`
-    /// means a selection is active; `None` or `a == cursor` means
-    /// there is none.
     anchor: Option<usize>,
 }
 
 impl State {
+    // ── Read ──────────────────────────────────────────────────────
+
     pub fn get_text(&self) -> &String {
         &self.text
     }
@@ -51,6 +50,44 @@ impl State {
         let hi_char = self.text[..hi].chars().count();
         Some(lo_char..hi_char)
     }
+
+    // ── Click-driven mutations (called from the display layer) ──
+
+    /// Move the cursor to `char_idx` and clear any selection.
+    pub fn set_cursor_char(&mut self, char_idx: usize) {
+        self.cursor = self.char_to_byte(char_idx);
+        self.anchor = None;
+    }
+
+    /// Select the word at `char_idx` (inclusive). If `char_idx`
+    /// points at whitespace immediately after a word, selects the
+    /// word before it — matching VS Code's double-click.
+    pub fn select_word_at(&mut self, char_idx: usize) {
+        let total = self.text.chars().count();
+        let byte = self.char_to_byte(char_idx.min(total));
+
+        if let Some((s, e)) = self.word_extent_at(byte) {
+            self.anchor = Some(s);
+            self.cursor = e;
+            return;
+        }
+        if byte > 0 {
+            let prev = self.prev_boundary(byte);
+            if let Some((s, e)) = self.word_extent_at(prev) {
+                self.anchor = Some(s);
+                self.cursor = e;
+                return;
+            }
+        }
+        self.cursor = byte;
+        self.anchor = None;
+    }
+
+    /// Select the whole buffer.
+    pub fn select_all(&mut self) {
+        self.anchor = Some(0);
+        self.cursor = self.text.len();
+    }
 }
 
 impl From<String> for State {
@@ -70,56 +107,78 @@ impl From<&str> for State {
     }
 }
 
+/// Feed keyboard events from `ui` into `state`.
+///
+/// * Consumes the events this crate handled (text input, arrows,
+///   backspace/delete, `Ctrl+A/C/X`, `Home`/`End`) so a sibling
+///   widget can't double-process them.
+/// * Leaves `Enter`, `Escape`, and any unrecognised key in
+///   `ui.input().events` — the caller can check them with
+///   `ui.input(|i| i.key_pressed(Key::Enter))` etc.
+/// * `Ctrl+C` / `Ctrl+X` write the selection to the system
+///   clipboard via `ui.ctx().copy_text(...)`.
 pub fn update(ui: &mut Ui, state: &mut State) {
+    let mut clipboard: Option<String> = None;
     ui.input_mut(|i| {
-        for event in &i.events {
-            process(state, event);
-        }
+        i.events
+            .retain(|event| !process(state, event, &mut clipboard));
     });
+    if let Some(text) = clipboard {
+        ui.ctx().copy_text(text);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // Everything below is private.
 // ═══════════════════════════════════════════════════════════════════
 
-/// Returns `true` if the event should stay in `events`.
-fn process(state: &mut State, event: &Event) {
+/// Returns `true` if the event was consumed (should be removed).
+fn process(state: &mut State, event: &Event, clipboard: &mut Option<String>) -> bool {
     match event {
         Event::Text(t) => {
             state.insert(t);
+            true
         }
         Event::Paste(t) => {
             state.insert(t);
+            true
         }
         Event::Key {
             key,
             pressed: true,
             modifiers,
             ..
-        } => handle_key(state, *key, *modifiers),
-        _ => {}
+        } => handle_key(state, *key, *modifiers, clipboard),
+        _ => false,
     }
 }
 
-/// Returns `true` if the key event should stay in `events`.
-fn handle_key(state: &mut State, key: Key, modifiers: Modifiers) {
+/// Returns `true` if the key was consumed.
+fn handle_key(
+    state: &mut State,
+    key: Key,
+    modifiers: Modifiers,
+    clipboard: &mut Option<String>,
+) -> bool {
     let shift = modifiers.shift;
     let cmd = modifiers.ctrl || modifiers.command;
 
     match key {
         Key::Backspace => {
-            let changed = if cmd {
-                state.delete_word_backward()
+            if cmd {
+                state.delete_word_backward();
             } else {
-                state.delete_backward()
-            };
+                state.delete_backward();
+            }
+            true
         }
         Key::Delete => {
-            let changed = if cmd {
-                state.delete_word_forward()
+            if cmd {
+                state.delete_word_forward();
             } else {
-                state.delete_forward()
-            };
+                state.delete_forward();
+            }
+            true
         }
         Key::ArrowLeft => {
             if shift {
@@ -138,6 +197,7 @@ fn handle_key(state: &mut State, key: Key, modifiers: Modifiers) {
                 state.cursor = state.prev_boundary(state.cursor);
                 state.anchor = None;
             }
+            true
         }
         Key::ArrowRight => {
             if shift {
@@ -156,6 +216,7 @@ fn handle_key(state: &mut State, key: Key, modifiers: Modifiers) {
                 state.cursor = state.next_boundary(state.cursor);
                 state.anchor = None;
             }
+            true
         }
         Key::Home => {
             if shift {
@@ -168,6 +229,7 @@ fn handle_key(state: &mut State, key: Key, modifiers: Modifiers) {
                 state.cursor = 0;
                 state.anchor = None;
             }
+            true
         }
         Key::End => {
             if shift {
@@ -180,18 +242,29 @@ fn handle_key(state: &mut State, key: Key, modifiers: Modifiers) {
                 state.cursor = state.text.len();
                 state.anchor = None;
             }
+            true
         }
         Key::A if cmd => {
             state.anchor = Some(0);
             state.cursor = state.text.len();
+            true
         }
-        Key::C if cmd => if let Some(t) = state.selection_text() {},
+        Key::C if cmd => {
+            if let Some(t) = state.selection_text() {
+                *clipboard = Some(t.to_string());
+            }
+            true
+        }
         Key::X if cmd => {
             if let Some(t) = state.selection_text().map(str::to_string) {
                 state.delete_selection_inner();
+                *clipboard = Some(t);
             }
+            true
         }
-        _ => {}
+        // Enter / Escape / unknown keys stay in the stream — the
+        // caller decides what to do with them.
+        _ => false,
     }
 }
 
@@ -230,6 +303,8 @@ impl State {
         }
     }
 
+    // ── Mutation ──────────────────────────────────────────────────
+
     fn insert(&mut self, s: &str) {
         self.delete_selection_inner();
         let at = self.cursor;
@@ -242,9 +317,7 @@ impl State {
         if self.cursor == 0 {
             return;
         }
-
         let prev = self.prev_boundary(self.cursor);
-
         self.text.replace_range(prev..self.cursor, "");
         self.cursor = prev;
     }
@@ -253,7 +326,6 @@ impl State {
         if self.cursor >= self.text.len() {
             return;
         }
-
         let next = self.next_boundary(self.cursor);
         self.text.replace_range(self.cursor..next, "");
     }
@@ -262,13 +334,10 @@ impl State {
         if self.cursor == 0 {
             return;
         }
-
         let start = self.word_left(self.cursor);
-
         if start == self.cursor {
             return;
         }
-
         self.text.replace_range(start..self.cursor, "");
         self.cursor = start;
     }
@@ -278,11 +347,9 @@ impl State {
             return;
         }
         let end = self.word_right(self.cursor);
-
         if end == self.cursor {
             return;
         }
-
         self.text.replace_range(self.cursor..end, "");
     }
 
@@ -306,6 +373,8 @@ impl State {
         self.cursor = self.word_right(self.cursor);
     }
 
+    // ── Boundaries ────────────────────────────────────────────────
+
     fn prev_boundary(&self, pos: usize) -> usize {
         let mut i = pos.min(self.text.len());
         while i > 0 {
@@ -325,8 +394,16 @@ impl State {
         i
     }
 
-    /// Move left to the start of the previous "word group":
-    /// skip non-word chars, then word chars.
+    fn char_to_byte(&self, char_idx: usize) -> usize {
+        self.text
+            .char_indices()
+            .nth(char_idx)
+            .map(|(b, _)| b)
+            .unwrap_or(self.text.len())
+    }
+
+    // ── Word navigation ──────────────────────────────────────────
+
     fn word_left(&self, from: usize) -> usize {
         let mut i = from;
         while i > 0 {
@@ -348,8 +425,6 @@ impl State {
         i
     }
 
-    /// Move right to the end of the next "word group":
-    /// skip word chars, then non-word chars.
     fn word_right(&self, from: usize) -> usize {
         let mut i = from;
         while i < self.text.len() {
@@ -369,6 +444,35 @@ impl State {
             i = next;
         }
         i
+    }
+
+    fn word_extent_at(&self, byte: usize) -> Option<(usize, usize)> {
+        if byte >= self.text.len() {
+            return None;
+        }
+        let c = self.text[byte..].chars().next()?;
+        if !is_word_char(c) {
+            return None;
+        }
+        let mut start = byte;
+        while start > 0 {
+            let p = self.prev_boundary(start);
+            let pc = self.text[p..start].chars().next()?;
+            if !is_word_char(pc) {
+                break;
+            }
+            start = p;
+        }
+        let mut end = byte;
+        while end < self.text.len() {
+            let n = self.next_boundary(end);
+            let nc = self.text[end..n].chars().next()?;
+            if !is_word_char(nc) {
+                break;
+            }
+            end = n;
+        }
+        Some((start, end))
     }
 }
 

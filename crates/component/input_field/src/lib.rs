@@ -15,6 +15,7 @@ use prelude::egui::Align2;
 use prelude::egui::Color32;
 use prelude::egui::CursorIcon;
 use prelude::egui::FontId;
+use prelude::egui::Key;
 use prelude::egui::Painter;
 use prelude::egui::Rect;
 use prelude::egui::Response;
@@ -82,18 +83,16 @@ pub fn paint(ui: &mut Ui, color_1: Color32, value: &mut String, label: &str) -> 
     let focused = ui.ctx().memory(|m| m.has_focus(id));
 
     // ── Text editing state ──────────────────────────────────────
-    // We read `state` from ctx data (persisted across frames), run
-    // `text_edit::update` while focused, and write it back. When the
-    // widget loses focus we drop the stored state so the next focus
-    // starts fresh — matching the old behaviour of the crate.
+    // Persisted across frames. On blur we drop it, so the next
+    // focus starts with a fresh state.
     let mut state: State = ui
         .ctx()
         .data(|d| d.get_temp::<State>(state_id))
         .unwrap_or_else(|| State::from(value.as_str()));
 
-    // External changes: the caller may have set `value` from somewhere
-    // else. If the state doesn't match, resync.
-    if state.text != *value {
+    // External changes: the caller may have set `value` from
+    // somewhere else. If the state doesn't match, resync.
+    if state.get_text().as_str() != value.as_str() {
         state = State::from(value.as_str());
     }
 
@@ -105,39 +104,34 @@ pub fn paint(ui: &mut Ui, color_1: Color32, value: &mut String, label: &str) -> 
                 let char_at = (local_x / char_w).round() as usize;
 
                 if response.triple_clicked() {
-                    // Triple-click → select all.
-                    state.anchor = Some(0);
-                    state.cursor = state.text.len();
+                    state.select_all();
                 } else if response.double_clicked() {
-                    // Double-click → select the word at the click.
-                    select_word_at(&mut state, char_at);
+                    state.select_word_at(char_at);
                 } else {
-                    // Single click → move cursor, clear selection.
-                    state.cursor = char_to_byte(&state.text, char_at);
-                    state.anchor = None;
+                    state.set_cursor_char(char_at);
                 }
             }
         }
 
         // Feed keyboard / text / paste events through the editor.
-        let outcome = ui.input_mut(|i| update(&mut state, &mut i.events));
+        update(ui, &mut state);
 
-        if outcome.changed {
-            *value = state.text.clone();
+        // Sync back to the caller's string if it changed.
+        if state.get_text().as_str() != value.as_str() {
+            *value = state.get_text().to_string();
             response.mark_changed();
         }
-        if let Some(clip) = outcome.clipboard {
-            ui.ctx().copy_text(clip);
-        }
-        if outcome.cancel {
+
+        // Escape blurs. `text_edit::update` leaves Escape in the
+        // event stream (it's not a text-editing event), so we can
+        // check it here directly.
+        if ui.input(|i| i.key_pressed(Key::Escape)) {
             ui.ctx().memory_mut(|m| m.surrender_focus(id));
         }
-        // outcome.submit left for the caller — the Enter event stayed
-        // in the stream.
     }
 
-    // Persist for next frame — but only while focused. On blur we drop
-    // it, so the next focus starts with a fresh state.
+    // Persist for next frame — only while focused. On blur we drop
+    // it, so the next focus starts fresh.
     if focused {
         ui.ctx()
             .data_mut(|d| d.insert_temp(state_id, state.clone()));
@@ -223,7 +217,7 @@ fn draw_content(
     let x0 = rect.left() + PAD;
 
     // ── Empty: show label on the left as a hint ─────────────────
-    if state.text.is_empty() {
+    if state.get_text().is_empty() {
         painter.text(
             pos2(x0, cy),
             Align2::LEFT_CENTER,
@@ -248,7 +242,7 @@ fn draw_content(
     let alpha = TEXT_ALPHA + (TEXT_ALPHA_FOCUSED - TEXT_ALPHA) * focus_t;
     let text_color = with_alpha(color, alpha);
 
-    let vg = painter.layout_no_wrap(state.text.clone(), font.clone(), text_color);
+    let vg = painter.layout_no_wrap(state.get_text().to_string(), font.clone(), text_color);
     let value_h = vg.size().y;
     let text_y = cy - value_h * 0.5;
 
@@ -276,92 +270,6 @@ fn draw_content(
             );
         }
     }
-}
-
-// ─── Helpers ───────────────────────────────────────────────────────
-
-/// Convert a char index into a byte index, clamping to `text.len()`.
-fn char_to_byte(text: &str, char_idx: usize) -> usize {
-    text.char_indices()
-        .nth(char_idx)
-        .map(|(b, _)| b)
-        .unwrap_or(text.len())
-}
-
-/// Select the word around `char_idx` (inclusive). If `char_idx`
-/// points at whitespace immediately after a word, selects the word
-/// before it — matching VS Code.
-fn select_word_at(state: &mut State, char_idx: usize) {
-    let total = state.text.chars().count();
-    let byte = char_to_byte(&state.text, char_idx.min(total));
-
-    let extent_at = |byte: usize| -> Option<(usize, usize)> {
-        if byte >= state.text.len() {
-            return None;
-        }
-        let c = state.text[byte..].chars().next()?;
-        if !is_word_char(c) {
-            return None;
-        }
-        let mut start = byte;
-        while start > 0 {
-            let p = prev_boundary(&state.text, start);
-            let pc = state.text[p..start].chars().next()?;
-            if !is_word_char(pc) {
-                break;
-            }
-            start = p;
-        }
-        let mut end = byte;
-        while end < state.text.len() {
-            let n = next_boundary(&state.text, end);
-            let nc = state.text[end..n].chars().next()?;
-            if !is_word_char(nc) {
-                break;
-            }
-            end = n;
-        }
-        Some((start, end))
-    };
-
-    if let Some((s, e)) = extent_at(byte) {
-        state.anchor = Some(s);
-        state.cursor = e;
-        return;
-    }
-    if byte > 0 {
-        let prev = prev_boundary(&state.text, byte);
-        if let Some((s, e)) = extent_at(prev) {
-            state.anchor = Some(s);
-            state.cursor = e;
-            return;
-        }
-    }
-    state.cursor = byte;
-    state.anchor = None;
-}
-
-fn prev_boundary(text: &str, pos: usize) -> usize {
-    let mut i = pos.min(text.len());
-    while i > 0 {
-        i -= 1;
-        if text.is_char_boundary(i) {
-            return i;
-        }
-    }
-    0
-}
-
-fn next_boundary(text: &str, pos: usize) -> usize {
-    let mut i = pos.saturating_add(1).min(text.len());
-    while i < text.len() && !text.is_char_boundary(i) {
-        i += 1;
-    }
-    i
-}
-
-fn is_word_char(c: char) -> bool {
-    c.is_alphanumeric() || c == '_'
 }
 
 fn with_alpha(color: Color32, alpha: f32) -> Color32 {
