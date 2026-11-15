@@ -6,3 +6,4 @@ version = "0.1.0"
 [dependencies]
 egui.workspace = true
 interfaces.workspace = true
+text_edit.workspace = true

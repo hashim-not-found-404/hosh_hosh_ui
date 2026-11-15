@@ -6,6 +6,7 @@ members = [
     "crates/interfaces",
     "crates/layouts",
     "crates/prelude",
+    "crates/text_edit",
 ]
 resolver = "3"
 
@@ -25,6 +26,7 @@ hosh_hosh_ui.path = "./crates/hosh_hosh_ui"
 interfaces.path = "./crates/interfaces"
 layouts.path = "./crates/layouts"
 prelude.path = "./crates/prelude"
+text_edit.path = "./crates/text_edit"
 
 # external out the domain
 eframe = "0.37.0"

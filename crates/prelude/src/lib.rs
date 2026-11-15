@@ -10,3 +10,5 @@ pub use interfaces::SecondaryButton;
 pub use interfaces::TertiaryButton;
 pub use interfaces::Theme;
 pub use interfaces::ToggleButton;
+pub use text_edit::State;
+pub use text_edit::update;
