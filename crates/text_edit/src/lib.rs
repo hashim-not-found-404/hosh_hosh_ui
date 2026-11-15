@@ -416,7 +416,9 @@ fn is_word_char(c: char) -> bool {
 /// skip non-word chars, then word chars.
 fn word_left(text: &str, from: usize) -> usize {
     let chars: Vec<char> = text.chars().collect();
-    let mut i = from.min(chars.len());
+    let total = chars.len();
+    let mut i = from.min(total);
+
     while i > 0 && !is_word_char(chars[i - 1]) {
         i -= 1;
     }
@@ -432,10 +434,11 @@ fn word_right(text: &str, from: usize) -> usize {
     let chars: Vec<char> = text.chars().collect();
     let total = chars.len();
     let mut i = from.min(total);
-    while i < total && is_word_char(chars[i]) {
+
+    while i < total && !is_word_char(chars[i]) {
         i += 1;
     }
-    while i < total && !is_word_char(chars[i]) {
+    while i < total && is_word_char(chars[i]) {
         i += 1;
     }
     i
