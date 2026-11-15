@@ -17,6 +17,7 @@ pub use layouts::grid_flex_and_justify::Layout as LayoutGridFlexAndJustify;
 pub use layouts::grid_flex_and_justify::make_rects as make_rects_grid_flex_and_justify;
 pub use layouts::horizontal::Layout as LayoutHorizontal;
 pub use layouts::horizontal::make_rects as make_rects_horizontal;
+pub use layouts::scroll::Layout as LayoutScroll;
 pub use layouts::utils::Node;
 pub use layouts::utils::render_into_rects;
 pub use layouts::vertical::Layout as LayoutVertical;

@@ -27,9 +27,9 @@ struct DemoApp;
 
 impl App for DemoApp {
     fn ui(&mut self, ui: &mut Ui, _: &mut Frame) {
-        CentralPanel::default().show(ui, |ui| {
-            LayoutVertical::default()
-                .child(
+        LayoutVertical::default()
+            .child(
+                LayoutScroll::default().child(
                     LayoutVerticalSizedAndClip::default()
                         .child(48.0, fun_label())
                         .child(48.0, fun_primary_button())
@@ -38,14 +38,10 @@ impl App for DemoApp {
                         .child(48.0, fun_input())
                         .child(100.0, fun_primary_button())
                         .child(200.0, fun_tertiary_button()),
-                )
-                .child(LayoutCenter::new(
-                    200.0,
-                    200.0,
-                    LayoutGridFlexAndJustify::new(350.0).child(fun_list()),
-                ))
-                .render(ui);
-        });
+                ),
+            )
+            .child(fun_tertiary_button())
+            .render(ui);
     }
 }
 

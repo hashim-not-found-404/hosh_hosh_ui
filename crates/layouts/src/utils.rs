@@ -5,6 +5,10 @@ use prelude::egui::Sense;
 use prelude::egui::Ui;
 use prelude::egui::UiBuilder;
 
+pub trait SizedVertical: Node + 'static {
+    fn high(&self) -> f32;
+}
+
 /// Anything that can paint itself into a `Ui`.
 pub trait Node: 'static {
     fn render(&self, ui: &mut Ui);
